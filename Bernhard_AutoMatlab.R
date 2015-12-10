@@ -51,13 +51,13 @@ create.text.file<-function(first.name, second.name, num.records){
         l4 <-  paste("2). CSV File: ",second.name,".CSV: Only containing the independent variables of the magnitude of frequency response function (dB, the independent variables) ",sep="")
         l5 <-  paste("3). CSV File: ",first.name,".CSV: The frequencies for Structure-borne (Hz; the dependent Variable)",sep="")
         if(reference){
-                l6 <- "This is a reference vehicle remeasured after 9 other vehicle to test repeatability and variation occurring on the reference vehicle"
+                l6 <- "This is a reference vehicle remeasured after 9 other vehicles to test repeatability and variation occurring on the reference vehicle"
         }else{
                 l6 <- ""
         }
         l7 <-  paste(second.name," - Matlab",sep="")
         l8 <-  paste(second.name," - CSV: Magnitude of Frequency Response Function (Independent Variables)",sep="")
-        l9 <- paste(first.name," - CSV: Frequency Structure-borne (Dependent Variable)",sep="")
+        l9 <- paste(first.name," - CSV: Frequency ", substrate.type,"-borne (Dependent Variable)",sep="")
         returned <- c(l1,brk,l2,l3,l4,l5,l6,brk,l7,l8,l9)
         returned
 }#end create.text.file
