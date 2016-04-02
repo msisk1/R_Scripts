@@ -3,7 +3,7 @@ rm(list=ls(all=TRUE)) # clear memory
 packages<- c("ggmap") # list the packages that you'll need
 lapply(packages, require, character.only=T) # load the packages, if they don't load you might need to install them first
 
-#setwd("/mnt/smb/")
+setwd("/mnt/smb/")
 setwd("E:\\GISWork_2\\Barber_Distances\\")
 #gmaps.key <- "AIzaSyDZy7HLVrouFTsULZ6D6ZyGub8iseJI_OU" #Unneeded!
 
