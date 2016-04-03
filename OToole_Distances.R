@@ -1,6 +1,6 @@
 rm(list=ls(all=TRUE)) # clear memory
 
-packages<- c("ggmap") # list the packages that you'll need
+packages<- c("ggmap","sp","taRifx.geo") # list the packages that you'll need
 lapply(packages, require, character.only=T) # load the packages, if they don't load you might need to install them first
 
 setwd("/mnt/smb/Research/OTool_Distances")
@@ -32,3 +32,15 @@ append.dist.to.table2 <- function(base.table, from.name, to.name, name.string="n
 all.respondants <- read.csv("all_participants_xy.csv")
 xy.only <- all.respondants[c(2,3)]
 unique.only <- unique(xy.only)
+
+all.enrollment <- read.csv("all_enrollment_centers_xy.csv")
+poin<-unique.only[1,]
+
+
+
+#Task 1: Get the Euclidean closest (or two) to each enrollment center
+enroll.points <- all.enrollment[c(1,2)]
+
+
+
+#Working area
