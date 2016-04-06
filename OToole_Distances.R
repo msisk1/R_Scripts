@@ -1,3 +1,5 @@
+#Testing to see about a pull
+
 rm(list=ls(all=TRUE)) # clear memory
 
 packages<- c("ggmap","sp","taRifx.geo") # list the packages that you'll need
