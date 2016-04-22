@@ -1,12 +1,12 @@
 rm(list=ls(all=TRUE)) # clear memory
 
-packages<- c("ncdf4","chron","ncdf.tools") # list the packages that you'll need
+packages<- c("ncdf4","chron") # list the packages that you'll need
 lapply(packages, require, character.only=T) # load the packages, if they don't load you might need to install them first
 
 #setwd("/mnt/smb/Research/OTool_Distances")
 setwd("E:\\GISWork_2\\Regan_Conflict\\2016-04-21_worldClimate")
 
-open.netcdf.return.df<-function(file.name, outfield.name = "nothing", cut.year = NA){
+open.netcdf.return.df<-function(file.name, outfield.name = "nothing", cut.year = NA, drop.na = FALSE){
         options(chron.year.abb=FALSE)
         
         netcdf <- nc_open(file.name)
@@ -54,7 +54,9 @@ open.netcdf.return.df<-function(file.name, outfield.name = "nothing", cut.year =
         # if(!is.na(cut.year)){
         #         netcdf.for.export<- netcdf.for.export[(netcdf.for.export$date > paste(cut.year,"-1-1",sep="")),]
         # }
-        
+        if (drop.na){
+                netcdf.for.export <- netcdf.for.export[complete.cases(netcdf.for.export),] 
+        }
         
         return(netcdf.for.export)
 }
@@ -69,7 +71,8 @@ write.csv(temp.data,"temp.csv",row.names = F)
 pdsi.data <- open.netcdf.return.df(file.name = "NetCDFs\\pdsi.mon.mean.selfcalibrated.nc", outfield.name = "pdsi", cut.year = 1980)
 write.csv(pdsi.data,"pdsi.csv",row.names = F)
 
-smOLD.data <- open.netcdf.return.df(file.name = "NetCDFs\\soilw.mon.mean.v2.nc", outfield.name = "smOLD", cut.year = 1980)
-write.csv(smOLD.data,"soilmoisture_old.csv",row.names = F)
-
-        
+smOLD.data <- open.netcdf.return.df(file.name = "NetCDFs\\soilw.mon.mean.v2.nc", outfield.name = "smOLD", cut.year = 1980, drop.na = T)
+#write.csv(smOLD.data,"soilmoisture_old.csv",row.names = F)
+for (i in  seq(1, nrow(smOLD.data),1000000)){
+        write.table(smOLD.data[i:(i + 999999),],"soilmoisture_old.csv",row.names = F, append = T,sep=",")
+        }
