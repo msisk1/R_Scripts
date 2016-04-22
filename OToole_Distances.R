@@ -1,51 +1,37 @@
 rm(list=ls(all=TRUE)) # clear memory
 
-packages<- c("ggmap","sp","taRifx.geo", "SpatialTools","plyr") # list the packages that you'll need
+packages<- c("ggmap","sp","taRifx.geo", "SpatialTools","plyr","gmapsdistance","RJSONIO","RCurl") # list the packages that you'll need
 lapply(packages, require, character.only=T) # load the packages, if they don't load you might need to install them first
 
 #setwd("/mnt/smb/Research/OTool_Distances")
 setwd("N:\\Research\\OTool_Distances")
-#gmaps.key <- "AIzaSyDZy7HLVrouFTsULZ6D6ZyGub8iseJI_OU" #Unneeded!
+gmaps.key <- "AIzaSyDZy7HLVrouFTsULZ6D6ZyGub8iseJI_OU" #Unneeded!
 
-output.in.progress.file <- "test.csv"
-
-
-append.dist.to.table2 <- function(base.table, from.name, to.name, name.string="none",index.string) {
-  if (name.string =="none"){name.string = to.name }
-  DF <- base.table[,c(from.name,to.name)]
-  DF$row.number <- 1:nrow(DF)      #create an index number for each row
-  for (i in DF$row.number){
-    print(i)
-    orig <- DF[i,c(from.name)] # get origin from DF in the position line 'i', column 'from'
-    dest <- DF[i,c(to.name)]   # get origin from DF in the position line 'i', column 'to'
-    a <- mapdist(from = orig, to = dest, mode = "driving",output = "simple") # create temp. df 'a' with the output from mapdist
-    a$row.number <- i # include in temp. df 'a' the index number of the row from DF
-    DF$minutes[match(a$row.number, DF$row.number)] <- a$minutes # use the index number as a matching key to input/update the value of the variable 'minutes'
-    DF$km[match(a$row.number, DF$row.number)] <- a$km # ibdem
-  }# end for loop
-  names(DF)[names(DF) == 'km']    <- paste(name.string,"_dist",sep="")
-  names(DF)[names(DF) == 'minutes']    <- paste(name.string,"_time",sep="")
-  DF
-}#end append.dist.to.table
+output.in.progress.file <- "unique_respon_processing.csv"
 
 #Import Data
-all.respondants <- read.csv("all_participants_xy.csv")
-unique.respondants <- unique(all.respondants[c(2,3)])
-unique.respondants <- unique.respondants[complete.cases(unique.respondants),] #removing case #98797 which is NA for both coordinates
-
-remove(all.respondants)
-
-all.enrollment <- read.csv("all_enrollment_centers_xy.csv")
-all.enrollment$ID <- paste("X", row.names(all.enrollment), sep="")
 
 
+
+
+time.field <- "time_min"
+distance.field <- "dist_km"
+orig.field <- "cord_src"
+dest.field <- "cord_dest"
+max.bad <- 10
 #TO CUT DOWN THE DATASET
-unique.respondants <-unique.respondants[1:50,] #SAMPLE IT DOWN TO 50 FOR TESTINF
+#unique.respondants <-unique.respondants[1:2505,] #SAMPLE IT DOWN TO 50 FOR TESTINF
 
 
 #Task 1: Get the Euclidean closest (or two) to each enrollment center
-if (!exists(output.in.progress.file)){
+if (!file.exists(output.in.progress.file)){
         print("Processing file")
+        all.respondants <- read.csv("all_participants_xy.csv")
+        unique.respondants <- unique(all.respondants[c(2,3)])
+        unique.respondants <- unique.respondants[complete.cases(unique.respondants),] #removing case #98797 which is NA for both coordinates
+        remove(all.respondants)
+        all.enrollment <- read.csv("all_enrollment_centers_xy.csv")
+        all.enrollment$ID <- paste("X", row.names(all.enrollment), sep="")
         respon.spdf <- SpatialPoints(coords = unique.respondants, proj4string=CRS("+proj=longlat +datum=WGS84"))
         enroll.spdf <- SpatialPoints(coords = all.enrollment[c(1,2)], proj4string=CRS("+proj=longlat +datum=WGS84"))
         eucDist.matrix <- data.frame (spDists(respon.spdf, enroll.spdf, longlat=T))
@@ -58,61 +44,155 @@ if (!exists(output.in.progress.file)){
         unique.respondants.with.closest <- cbind(unique.respondants,min.distances)
         
         unique.respondants.with.closest <- merge(unique.respondants.with.closest, all.enrollment, by="ID", all.x=T)
-        unique.respondants.with.closest$cord_src <- paste(unique.respondants.with.closest$y, unique.respondants.with.closest$x,sep=", ")
-        unique.respondants.with.closest$cord_dest <- paste(unique.respondants.with.closest$y, unique.respondants.with.closest$X,sep=", ")
-        #write.csv(unique.respondants.with.closest,output.in.progress.file)
+        unique.respondants.with.closest[,c(orig.field)] <- paste(unique.respondants.with.closest$y, unique.respondants.with.closest$x,sep=", ")
+        unique.respondants.with.closest[,c(dest.field)] <- paste(unique.respondants.with.closest$Y, unique.respondants.with.closest$X,sep=", ")
+        unique.respondants.with.closest[,c(distance.field)] <- NA
+        unique.respondants.with.closest[,c(time.field)] <- NA
+        
+        write.csv(unique.respondants.with.closest,output.in.progress.file)
+        respon.processing<-unique.respondants.with.closest
+        remove(all.enrollment,eucDist.matrix,min.distances,unique.respondants,unique.respondants.with.closest)
+        
+
 }else{
-        unique.respondants.with.closest <- read.csv(output.in.progress.file)  
+       respon.processing <- read.csv(output.in.progress.file,stringsAsFactors= F,row.names = 1)  
 }
 
 
 #Task 2: Run through the dataset and calculate driving distances
 
-run.a.single.coord.pair <- function(orig2,dest2){
-        a <- mapdist(from = orig2, to = dest2, mode = "driving",output = "simple") # create temp. df 'a' with the output from mapdist
-        return(list(a$km,a$minutes))        
-}
 
-unique.respondants.with.closest$row.number <- 1:nrow(unique.respondants.with.closest)      #create an index number for each row
-for (i in unique.respondants.with.closest$row.number){
-        print(i)
-        orig <- unique.respondants.with.closest[i,c("cord_src")] # get origin from DF in the position line 'i', column 'from'
-        dest <- unique.respondants.with.closest[i,c("cord_dest")]   # get origin from DF in the position line 'i', column 'to'
-        print(paste(orig, dest))
-        pop <- run.a.single.coord.pair(orig,dest)
-        unique.respondants.with.closest[i,c("dist_km")] <- pop[1]
-        unique.respondants.with.closest[i,c("dist_time")] <- pop[2]
+run.a.single.coord.pair <- function(orig2,dest2){
+
+        out <- tryCatch(
+                {
+                        results <- gmapsdistance(gsub(" ", "", orig2), gsub(" ", "", dest2), "driving")
+                        distance <-results$Distance/ 1000
+                        time<- results$Time / 60
+                        list(distance,time, "OK") #   
+                },
+                error=function(cond) {
+                        message("Error: Probably over limit")
+                        message(paste(orig2,dest2))
+                        message(paste(cond,"\n",sep = ""))
+                        #message("")
+                        return(list(0,0,"FAIL"))
+                },
+                warning=function(cond) {
+                        message("Original warning message:")
+                        message(cond)
+                        return(list(0,0,"FAIL"))
+                },
+                finally={
+                        
+                        #message("Some other message at the end")
+                }
+        )    
+        return(out)
         
+} #run.a.single.coord.pair
+
+num.bad <- 0
+respon.processing$row.number <- 1:nrow(respon.processing)      #create an index number for each row
+for (i in respon.processing$row.number){
+        #print(paste(orig, dest))
+        if (is.na(respon.processing[i,c(distance.field)])){
+                print(i)
+                orig <- respon.processing[i,c("cord_src")] # get origin from DF in the position line 'i', column 'from'
+                dest <- respon.processing[i,c("cord_dest")]   # get origin from DF in the position line 'i', column 'to'
+                pop <- run.a.single.coord.pair(orig,dest)
+                if (pop[3] == "OK"){
+                        respon.processing[i,c(distance.field)] <- pop[1]
+                        respon.processing[i,c(time.field)] <- pop[2]
+                        
+                } # end if (pop[3] == "FAIL"){ 
+                else{
+                        respon.processing[i,c(distance.field)] <- NA
+                        respon.processing[i,c(time.field)] <- NA
+                        num.bad <- num.bad +1 
+                        print(paste("number bad:", num.bad))
+                } # end if (pop[3] == "FAIL"){
+                Sys.sleep(0.1)
+                
+        }# end if distance.field is not null
+        if (num.bad > max.bad) break
 }# end for loop
 
+write.csv(respon.processing,output.in.progress.file)
 
-orig <-unique.respondants.with.closest[2,"cord_src"]
-dest <-unique.respondants.with.closest[2,"cord_dest"]
+
+
+
+
+working = F
+#Working area
+if(working == T){i<-1
+orig <- respon.processing[i,c("cord_src")] # get origin from DF in the position line 'i', column 'from'
+dest <- respon.processing[i,c("cord_dest")]
 
 pop <- run.a.single.coord.pair(orig,dest)
-for 
+
+
+#trying by hand
+#https://maps.googleapis.com/maps/api/directions/json?origin=Boston,MA&destination=Concord,MA&waypoints=Charlestown,MA|via:Lexington,MA&key=YOUR_API_KEY
+
+url1 <- paste("https://maps.googleapis.com/maps/api/directions/json?origin=",orig,"&destination=",dest,"&key=",gmaps.key, sep="")
+url <- gsub(" ", "", url1)
+geo_data <- getURL(url)
+x <-fromJSON(geo_data)
+distance <-x$routes[[1]]$legs[[1]]$distance$value / 1000
+time<- x$routes[[1]]$legs[[1]]$duration$value / 60
+
+#and now we are just trying by gmapsdistance
+set.api.key(gmaps.key)
+results = gmapsdistance(gsub(" ", "", orig), gsub(" ", "", dest), "driving")
+distance <-results$Distance/ 1000
+time<- results$Time / 60
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-ape <- append.dist.to.table2(unique.respondants.with.closest, "cord_src", "cord_dest", name.string="none",index.string = "koop")
-
-#Working area
-i<-1
-DF<-unique.respondants.with.closest
-DF$row.number <- 1:nrow(DF)      #create an index number for each row
-
-orig <- DF[i,c("cord_src")] # get origin from DF in the position line 'i', column 'from'
-dest <- DF[i,c("cord_dest")]   # get origin from DF in the position line 'i', column 'to'
-#a <- mapdist(from = (41.98015976, -88.13900757), to = (41.98015976, -87.74879), mode = "driving",output = "all") # create temp. df 'a' with the output from mapdist
-google_results <- rbind.fill(apply(subset(DF, select=c("cord_src", "cord_dest")), 1, function(x) mapdist(x[1], x[2], mode="driving")))
+# run.a.single.coord.pair.mapdist <- function(orig2,dest2){
+#         out <- tryCatch(
+#                 {
+#                         a <- mapdist(from = orig2, to = dest2, mode = "driving",output = "simple") # create temp. df 'a' with the output from mapdist
+#                         list(a$km,a$minutes) #
+#                 },
+#                 error=function(cond) {
+#                         message("Original error message:")
+#                         message(cond)
+#                         return(list(0,0))
+#                 },
+#                 warning=function(cond) {
+#                         message("Original warning message:")
+#                         message(cond)
+#                         return(list(0,0))
+#                 },
+#                 finally={
+#  
+#                         #message("Some other message at the end")
+#                 }
+#         )    
+#         return(out)
+# } #run.a.single.coord.pair
+# 
+# run.a.single.coord.pair.byhand <- function(orig2,dest2){
+#                 
+#                 url1 <- paste("https://maps.googleapis.com/maps/api/directions/json?origin=",orig2,"&destination=",dest2,"&key=",gmaps.key, sep="")
+#                 url <- gsub(" ", "", url1) #removes spaces
+#                 print(url)
+#                 geo_data <- getURL(url)
+#                 x <-fromJSON(geo_data, simplify = T)
+#                 if(x$status=="OK") {
+#                         distance <-x$routes[[1]]$legs[[1]]$distance$value / 1000
+#                         time<- x$routes[[1]]$legs[[1]]$duration$value / 60
+#                         return(list(distance,time, "OK")) #        
+#                 }else{
+#                         print("fail")
+#                         print(paste(x$status, x$error_message, sep=": "))
+#                         return(list(0,0,"FAIL"))
+#                 }
+#                 
+#               
+# } #run.a.single.coord.pair
+}
