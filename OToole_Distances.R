@@ -5,7 +5,7 @@ lapply(packages, require, character.only=T) # load the packages, if they don't l
 
 #setwd("/mnt/smb/Research/OTool_Distances")
 setwd("N:\\Research\\OTool_Distances")
-gmaps.key <- "AIzaSyDZy7HLVrouFTsULZ6D6ZyGub8iseJI_OU" #Unneeded!
+gmaps.key <- "AIzaSyDZy7HLVrouFTsULZ6D6ZyGub8iseJI_OU" 
 
 output.in.progress.file <- "unique_respon_processing.csv"
 
@@ -19,6 +19,9 @@ distance.field <- "dist_km"
 orig.field <- "cord_src"
 dest.field <- "cord_dest"
 max.bad <- 10
+delay <- .2
+
+
 #TO CUT DOWN THE DATASET
 #unique.respondants <-unique.respondants[1:2505,] #SAMPLE IT DOWN TO 50 FOR TESTINF
 
@@ -57,6 +60,45 @@ if (!file.exists(output.in.progress.file)){
 }else{
        respon.processing <- read.csv(output.in.progress.file,stringsAsFactors= F,row.names = 1)  
 }
+run.a.single.coord.pair.byhand <- function(orig2,dest2){
+        json.worked <- F
+        distance <- 0
+        time <- 0
+        status <- "Not_run"
+        
+        status.string <- '\"status\" : ' 
+        legs.string <- "\"legs\" : "
+        
+        url <- URLencode(paste("https://maps.googleapis.com/maps/api/directions/json?origin=",orig2,"&destination=",dest2,"&key=",gmaps.key, sep=""))
+        from.gm <- getURL(url)
+        
+        #Should be the try
+        try({
+                x <-fromJSON(from.gm, simplify = T)
+                status <- x$status
+                distance <-as.numeric(x$routes[[1]]$legs[[1]]$distance["value"]) / 1000
+                time<- as.numeric(x$routes[[1]]$legs[[1]]$duration["value"]) /60
+                json.worked <- T
+        })
+        if (!json.worked){
+                message("JSON Failed")
+                all.lines <- strsplit(from.gm,"\n")[[1]]
+                status.index <- as.numeric(grep(status.string,all.lines))
+                status.line <- all.lines[status.index]
+                status <- substr(status.line,16,nchar(status.line)-1 )
+                if (status == "OK"){
+                        legs.index <- as.numeric(grep(legs.string,all.lines))
+                        distance.line <- all.lines[legs.index+4]
+                        distance <- as.numeric(substr(distance.line, 29, nchar(distance.line))) / 1000
+                        time.line <- all.lines [legs.index+8]
+                        time <- as.numeric(substr(time.line, 29, nchar(time.line))) / 60
+                }
+        }# end if json did not work
+        return(list(distance,time,status))         
+        
+} # end run.a.single.coord.pair.byhand
+
+
 
 
 #Task 2: Run through the dataset and calculate driving distances
@@ -100,7 +142,7 @@ for (i in respon.processing$row.number){
                 print(i)
                 orig <- respon.processing[i,c("cord_src")] # get origin from DF in the position line 'i', column 'from'
                 dest <- respon.processing[i,c("cord_dest")]   # get origin from DF in the position line 'i', column 'to'
-                pop <- run.a.single.coord.pair(orig,dest)
+                pop <- run.a.single.coord.pair.byhand(orig,dest)
                 if (pop[3] == "OK"){
                         respon.processing[i,c(distance.field)] <- pop[1]
                         respon.processing[i,c(time.field)] <- pop[2]
@@ -110,9 +152,9 @@ for (i in respon.processing$row.number){
                         respon.processing[i,c(distance.field)] <- NA
                         respon.processing[i,c(time.field)] <- NA
                         num.bad <- num.bad +1 
-                        print(paste("number bad:", num.bad))
+                        print(paste("number bad:", num.bad, pop[3]))
                 } # end if (pop[3] == "FAIL"){
-                Sys.sleep(0.1)
+                Sys.sleep(delay)
                 
         }# end if distance.field is not null
         if (num.bad > max.bad) break
@@ -127,8 +169,8 @@ write.csv(respon.processing,output.in.progress.file)
 working = F
 #Working area
 if(working == T){i<-1
-orig <- respon.processing[i,c("cord_src")] # get origin from DF in the position line 'i', column 'from'
-dest <- respon.processing[i,c("cord_dest")]
+orig <- respon.processing[9940,c("cord_src")] # get origin from DF in the position line 'i', column 'from'
+dest <- respon.processing[9940,c("cord_dest")]
 
 pop <- run.a.single.coord.pair(orig,dest)
 
@@ -176,23 +218,34 @@ time<- results$Time / 60
 #         return(out)
 # } #run.a.single.coord.pair
 # 
-# run.a.single.coord.pair.byhand <- function(orig2,dest2){
-#                 
-#                 url1 <- paste("https://maps.googleapis.com/maps/api/directions/json?origin=",orig2,"&destination=",dest2,"&key=",gmaps.key, sep="")
-#                 url <- gsub(" ", "", url1) #removes spaces
-#                 print(url)
-#                 geo_data <- getURL(url)
-#                 x <-fromJSON(geo_data, simplify = T)
-#                 if(x$status=="OK") {
-#                         distance <-x$routes[[1]]$legs[[1]]$distance$value / 1000
-#                         time<- x$routes[[1]]$legs[[1]]$duration$value / 60
-#                         return(list(distance,time, "OK")) #        
-#                 }else{
-#                         print("fail")
-#                         print(paste(x$status, x$error_message, sep=": "))
-#                         return(list(0,0,"FAIL"))
-#                 }
-#                 
+
 #               
 # } #run.a.single.coord.pair
 }
+orig2 <- respon.processing[10,c("cord_src")] # get origin from DF in the position line 'i', column 'from'
+dest2 <- respon.processing[10,c("cord_dest")]
+
+aaa<-run.a.single.coord.pair.byhand(orig2,dest2)     
+
+out <- tryCatch(
+        {
+        
+        },
+        error=function(cond) {
+                message("Original error message:")
+                message(cond)
+                return(list(0,0))
+        },
+        warning=function(cond) {
+                message("Original warning message:")
+                message(cond)
+                return(list(0,0))
+        },
+        finally={
+
+              
+        }
+)
+return(out)
+
+

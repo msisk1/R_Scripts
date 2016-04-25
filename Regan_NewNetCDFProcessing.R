@@ -61,7 +61,7 @@ open.netcdf.return.df<-function(file.name, outfield.name = "nothing", cut.year =
         return(netcdf.for.export)
 }
 
-
+#1). converting netcdfs to csv
 precip.data <- open.netcdf.return.df(file.name = "NetCDFs\\precip.mon.mean.nc", outfield.name = "precip", cut.year = 1980)
 write.csv(precip.data,"precipitation.csv",row.names = F)
 
@@ -75,4 +75,9 @@ smOLD.data <- open.netcdf.return.df(file.name = "NetCDFs\\soilw.mon.mean.v2.nc",
 #write.csv(smOLD.data,"soilmoisture_old.csv",row.names = F)
 for (i in  seq(1, nrow(smOLD.data),1000000)){
         write.table(smOLD.data[i:(i + 999999),],"soilmoisture_old.csv",row.names = F, append = T,sep=",")
-        }
+}
+
+#2 adding the gridcell to the csvs
+
+precip.data <- open.csv("precipitation.csv")
+
