@@ -87,11 +87,13 @@ run.a.single.coord.pair.byhand <- function(orig2,dest2){
                 status.line <- all.lines[status.index]
                 status <- substr(status.line,16,nchar(status.line)-1 )
                 if (status == "OK"){
+                        
                         legs.index <- as.numeric(grep(legs.string,all.lines))
                         distance.line <- all.lines[legs.index+4]
                         distance <- as.numeric(substr(distance.line, 29, nchar(distance.line))) / 1000
                         time.line <- all.lines [legs.index+8]
                         time <- as.numeric(substr(time.line, 29, nchar(time.line))) / 60
+                        message(paste("     grep success",distance,time))
                 }
         }# end if json did not work
         return(list(distance,time,status))         
@@ -148,6 +150,9 @@ for (i in respon.processing$row.number){
                         respon.processing[i,c(time.field)] <- pop[2]
                         
                 } # end if (pop[3] == "FAIL"){ 
+                else if (pop[3] == "OVER_QUERY_LIMIT"){
+                        break
+                } # end if (pop[3] == "FAIL"){
                 else{
                         respon.processing[i,c(distance.field)] <- NA
                         respon.processing[i,c(time.field)] <- NA
