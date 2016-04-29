@@ -1,6 +1,7 @@
 rm(list=ls(all=TRUE)) # clear memory
 
-packages<- c("ggmap","sp","taRifx.geo", "SpatialTools","plyr","gmapsdistance","RJSONIO","RCurl") # list the packages that you'll need
+# packages<- c("ggmap","sp","taRifx.geo", "SpatialTools","plyr","gmapsdistance","RJSONIO","RCurl") # list the packages that you'll need
+packages<- c("sp","RJSONIO","RCurl") # list the packages that you'll need
 lapply(packages, require, character.only=T) # load the packages, if they don't load you might need to install them first
 
 #setwd("/mnt/smb/Research/OTool_Distances")
@@ -19,7 +20,7 @@ distance.field <- "dist_km"
 orig.field <- "cord_src"
 dest.field <- "cord_dest"
 max.bad <- 10
-delay <- .2
+delay <- .1
 
 
 #TO CUT DOWN THE DATASET
@@ -71,7 +72,6 @@ run.a.single.coord.pair.byhand <- function(orig2,dest2){
         
         url <- URLencode(paste("https://maps.googleapis.com/maps/api/directions/json?origin=",orig2,"&destination=",dest2,"&key=",gmaps.key, sep=""))
         from.gm <- getURL(url)
-        
         #Should be the try
         try({
                 x <-fromJSON(from.gm, simplify = T)
@@ -106,41 +106,13 @@ run.a.single.coord.pair.byhand <- function(orig2,dest2){
 #Task 2: Run through the dataset and calculate driving distances
 
 
-run.a.single.coord.pair <- function(orig2,dest2){
-
-        out <- tryCatch(
-                {
-                        results <- gmapsdistance(gsub(" ", "", orig2), gsub(" ", "", dest2), "driving")
-                        distance <-results$Distance/ 1000
-                        time<- results$Time / 60
-                        list(distance,time, "OK") #   
-                },
-                error=function(cond) {
-                        message("Error: Probably over limit")
-                        message(paste(orig2,dest2))
-                        message(paste(cond,"\n",sep = ""))
-                        #message("")
-                        return(list(0,0,"FAIL"))
-                },
-                warning=function(cond) {
-                        message("Original warning message:")
-                        message(cond)
-                        return(list(0,0,"FAIL"))
-                },
-                finally={
-                        
-                        #message("Some other message at the end")
-                }
-        )    
-        return(out)
-        
-} #run.a.single.coord.pair
-
 num.bad <- 0
+num.total <-0
 respon.processing$row.number <- 1:nrow(respon.processing)      #create an index number for each row
 for (i in respon.processing$row.number){
         #print(paste(orig, dest))
         if (is.na(respon.processing[i,c(distance.field)])){
+                num.total <- num.total + 1
                 print(i)
                 orig <- respon.processing[i,c("cord_src")] # get origin from DF in the position line 'i', column 'from'
                 dest <- respon.processing[i,c("cord_dest")]   # get origin from DF in the position line 'i', column 'to'
@@ -151,6 +123,7 @@ for (i in respon.processing$row.number){
                         
                 } # end if (pop[3] == "FAIL"){ 
                 else if (pop[3] == "OVER_QUERY_LIMIT"){
+                        print(paste(pop[3],num.total))
                         break
                 } # end if (pop[3] == "FAIL"){
                 else{
@@ -168,89 +141,5 @@ for (i in respon.processing$row.number){
 write.csv(respon.processing,output.in.progress.file)
 
 
-
-
-
-working = F
-#Working area
-if(working == T){i<-1
-orig <- respon.processing[9940,c("cord_src")] # get origin from DF in the position line 'i', column 'from'
-dest <- respon.processing[9940,c("cord_dest")]
-
-pop <- run.a.single.coord.pair(orig,dest)
-
-
-#trying by hand
-#https://maps.googleapis.com/maps/api/directions/json?origin=Boston,MA&destination=Concord,MA&waypoints=Charlestown,MA|via:Lexington,MA&key=YOUR_API_KEY
-
-url1 <- paste("https://maps.googleapis.com/maps/api/directions/json?origin=",orig,"&destination=",dest,"&key=",gmaps.key, sep="")
-url <- gsub(" ", "", url1)
-geo_data <- getURL(url)
-x <-fromJSON(geo_data)
-distance <-x$routes[[1]]$legs[[1]]$distance$value / 1000
-time<- x$routes[[1]]$legs[[1]]$duration$value / 60
-
-#and now we are just trying by gmapsdistance
-set.api.key(gmaps.key)
-results = gmapsdistance(gsub(" ", "", orig), gsub(" ", "", dest), "driving")
-distance <-results$Distance/ 1000
-time<- results$Time / 60
-
-
-
-
-# run.a.single.coord.pair.mapdist <- function(orig2,dest2){
-#         out <- tryCatch(
-#                 {
-#                         a <- mapdist(from = orig2, to = dest2, mode = "driving",output = "simple") # create temp. df 'a' with the output from mapdist
-#                         list(a$km,a$minutes) #
-#                 },
-#                 error=function(cond) {
-#                         message("Original error message:")
-#                         message(cond)
-#                         return(list(0,0))
-#                 },
-#                 warning=function(cond) {
-#                         message("Original warning message:")
-#                         message(cond)
-#                         return(list(0,0))
-#                 },
-#                 finally={
-#  
-#                         #message("Some other message at the end")
-#                 }
-#         )    
-#         return(out)
-# } #run.a.single.coord.pair
-# 
-
-#               
-# } #run.a.single.coord.pair
-}
-orig2 <- respon.processing[10,c("cord_src")] # get origin from DF in the position line 'i', column 'from'
-dest2 <- respon.processing[10,c("cord_dest")]
-
-aaa<-run.a.single.coord.pair.byhand(orig2,dest2)     
-
-out <- tryCatch(
-        {
-        
-        },
-        error=function(cond) {
-                message("Original error message:")
-                message(cond)
-                return(list(0,0))
-        },
-        warning=function(cond) {
-                message("Original warning message:")
-                message(cond)
-                return(list(0,0))
-        },
-        finally={
-
-              
-        }
-)
-return(out)
 
 
