@@ -17,18 +17,20 @@ tracts.nd <-poly2nb(in.tracts)
 tracts.listw <- nb2listw(tracts.nd, style = "W")
 
 ca.prec <- readOGR(".", layer = "CA_2012_precinct_shapefile_with_voting_data")
+ca.prec.repro <- readOGR(".", layer = "CA_2012_EqualArea_Conic")
 
 
 
 la.prec <- readOGR(".", layer = "LA_Precints")
 
 la.prec.single <- disaggregate(la.prec)
-count.table<- data.frame(table(la.prec.single@data$SRPREC_KEY))
-colnames(count.table) = c("SRPREC_KEY","Count")
-la.prec.with.count <- merge(la.prec,count.table, by="SRPREC_KEY", all.x = T)
+#count.table<- data.frame(table(la.prec.single@data$SRPREC_KEY))
+#colnames(count.table) = c("SRPREC_KEY","Count")
+#la.prec.with.count <- merge(la.prec,count.table, by="SRPREC_KEY", all.x = T)
 #writeOGR(la.prec.with.count, dsn="." ,layer="LA_Precints_withCount2",driver="ESRI Shapefile")
 
 
+#Analysis
 la.prec.single.nb <-poly2nb(la.prec.single)
 la.prec.single.list <- nb2listw(la.prec.single.nb, style = "W", zero.policy = T)
 locm <- localmoran(la.prec.single$p_obama_20, la.prec.single.list, alternative="two.sided")
@@ -46,11 +48,35 @@ la.prec.single2 <- merge(la.prec.single,just.neighborcounts, by="SRPREC_KEY", al
 
 
 #Calculating areas
-library("rgeos")
 
-#areas <-sapply(slot(la.prec.single, "polygons"), function(x) sapply(slot(x, "Polygons"), slot, "area"))
-aa <- data.frame(gArea(la.prec.single, byid = TRUE))
-colnames(aa) <- c("area")
-la.prec.single.area<- spCbind(la.prec.single,aa)
-writeOGR(la.prec.single.area, dsn="." ,layer="LA_PrecintsSing_area3",driver="ESRI Shapefile")
-write.csv(la.prec.single.area, "crap.csv")
+ca.prec <- readOGR(".", layer = "CA_2012_precinct_shapefile_with_voting_data")
+CA_Albers <- "+init=epsg:3310"   #This is just a code for the projection we are moving the data into
+ca.prec.albers <- spTransform(ca.prec, CRS(CA_Albers)) #This does the reprojection allowing us to calculate area.
+ca.prec.albers.diss <- disaggregate(ca.prec.albers)
+ca.prec.albers.diss2 <- ca.prec.albers.diss[which (ca.prec.albers.diss@data$SRPREC!= "UNASSIGN"),]
+
+areas <- sapply(slot(ca.prec.albers.diss, "polygons"), function(x) sapply(slot(x,"Polygons"), slot, "area"))
+test <- spCbind(ca.prec.albers.diss,a2)
+
+
+
+writeOGR(ca.prec.albers, dsn="." ,layer="CA2012_CA_AlbersfromR",driver="ESRI Shapefile")
+
+
+library("data.table")
+diss.with.area <- readOGR(".", layer = "CA2012_CA_Albers_diss_fromR")
+diss.with.area@data$rowID <- row.name
+diss.with.area@data$rowID <- 1:nrow(diss.with.area@data)      #create an index number for each row
+just.df <- diss.with.area@data[,c("rowID", "area_sin","SRPREC_KEY")]
+max.table <- data.frame(setDT(just.df)[, .SD[which.max(area_sin)], by=SRPREC_KEY])
+max.table$use <- 1
+max.table <- max.table[c("rowID","use")]
+diss.with.area2 <-merge(diss.with.area,max.table)
+diss.with.area2@data$use[is.na(diss.with.area2@data$use)] <- 0
+writeOGR(diss.with.area2, dsn="." ,layer="CA2012_with_use",driver="ESRI Shapefile")
+
+#Selection.in.QGIS <- "SRPREC" != 'UNASSIGN'  AND  "use"  = 0
+
+
+#major testing
+
