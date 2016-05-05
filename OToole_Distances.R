@@ -44,7 +44,7 @@ if (!file.exists(output.in.progress.file)){
                 c(colnames(eucDist.matrix)[j], eucDist.matrix[i,j])
         })))#end min distances
         names(min.distances)[names(min.distances) == 'X1']    <- "ID"
-        names(min.distances)[names(min.distances) == 'X2']    <- "Dist_km"
+        names(min.distances)[names(min.distances) == 'X2']    <- "Euc_Dist"
         unique.respondants.with.closest <- cbind(unique.respondants,min.distances)
         
         unique.respondants.with.closest <- merge(unique.respondants.with.closest, all.enrollment, by="ID", all.x=T)
@@ -76,9 +76,12 @@ run.a.single.coord.pair.byhand <- function(orig2,dest2){
         try({
                 x <-fromJSON(from.gm, simplify = T)
                 status <- x$status
-                distance <-as.numeric(x$routes[[1]]$legs[[1]]$distance["value"]) / 1000
-                time<- as.numeric(x$routes[[1]]$legs[[1]]$duration["value"]) /60
-                json.worked <- T
+                if (status == "OK"){
+                        distance <-as.numeric(x$routes[[1]]$legs[[1]]$distance["value"]) / 1000
+                        time<- as.numeric(x$routes[[1]]$legs[[1]]$duration["value"]) /60
+                        json.worked <- T
+                }
+
         })
         if (!json.worked){
                 message("JSON Failed")
@@ -137,9 +140,18 @@ for (i in respon.processing$row.number){
         }# end if distance.field is not null
         if (num.bad > max.bad) break
 }# end for loop
-
+print("Writing csv")
 write.csv(respon.processing,output.in.progress.file)
 
+write.as.shapefile(respon.processing[1:1000,],"temp_shape2")
 
-
-
+# cat ("Done. Press [enter] to continue")
+# line <- readline()
+write.as.shapefile<- function(table, out.name){
+        latlong <- "+init=epsg:4326"
+        google <- "+init=epsg:3857"
+        coordinates(table)=~x+y
+        proj4string(table) <- CRS(latlong)
+        writeOGR(table, dsn="." ,layer=out.name,driver="ESRI Shapefile")
+        
+}

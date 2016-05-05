@@ -1,7 +1,7 @@
 #Setup
 rm(list=ls(all=TRUE)) # clear memory
 
-packages<- c("rgdal","spdep","maptools") # list the packages that you'll need
+packages<- c("rgdal","spdep","maptools","rgeos") # list the packages that you'll need
 lapply(packages, require, character.only=T) # load the packages, if they don't load you might need to install them first
 setwd("C:\\Temp\\New") # SET YOUR WORKING DIRECTORY HERE!!!
 
@@ -43,3 +43,14 @@ writeOGR(la.prec.single2, dsn="." ,layer="LA_PrecintsSing_withneighbors",driver=
 
 
 la.prec.single2 <- merge(la.prec.single,just.neighborcounts, by="SRPREC_KEY", all.x = T)
+
+
+#Calculating areas
+library("rgeos")
+
+#areas <-sapply(slot(la.prec.single, "polygons"), function(x) sapply(slot(x, "Polygons"), slot, "area"))
+aa <- data.frame(gArea(la.prec.single, byid = TRUE))
+colnames(aa) <- c("area")
+la.prec.single.area<- spCbind(la.prec.single,aa)
+writeOGR(la.prec.single.area, dsn="." ,layer="LA_PrecintsSing_area3",driver="ESRI Shapefile")
+write.csv(la.prec.single.area, "crap.csv")
