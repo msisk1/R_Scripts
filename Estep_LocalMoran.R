@@ -13,9 +13,6 @@ in.data2 <- in.data[,c("GEOID","AA_per")]
 
 mergeed.spdf <- merge(in.tracts,in.data, by = "GEOID", all=T)
 
-tracts.nd <-poly2nb(in.tracts)
-tracts.listw <- nb2listw(tracts.nd, style = "W")
-
 ca.prec <- readOGR(".", layer = "CA_2012_precinct_shapefile_with_voting_data")
 ca.prec.repro <- readOGR(".", layer = "CA_2012_EqualArea_Conic")
 
@@ -31,7 +28,7 @@ la.prec.single <- disaggregate(la.prec)
 
 
 #Analysis
-la.prec.single.nb <-poly2nb(la.prec.single)
+la.prec.single.nb <-poly2nb(la.prec)
 la.prec.single.list <- nb2listw(la.prec.single.nb, style = "W", zero.policy = T)
 locm <- localmoran(la.prec.single$p_obama_20, la.prec.single.list, alternative="two.sided")
 
@@ -39,7 +36,7 @@ num_neig <- data.frame(card(la.prec.single.nb))
 
 
 library(maptools)
-la.prec.single2<- spCbind(la.prec.single,num_neig)
+la.prec.single2<- spCbind(la.prec,num_neig)
 writeOGR(la.prec.single2, dsn="." ,layer="LA_PrecintsSing_withneighbors",driver="ESRI Shapefile")
 
 
@@ -62,6 +59,7 @@ test <- spCbind(ca.prec.albers.diss,a2)
 
 writeOGR(ca.prec.albers, dsn="." ,layer="CA2012_CA_AlbersfromR",driver="ESRI Shapefile")
 
+#4). Figure out which is the biggest polygon for each of the SRPREC_KEYs and flag it.
 
 library("data.table")
 diss.with.area <- readOGR(".", layer = "CA2012_CA_Albers_diss_fromR")
@@ -77,6 +75,47 @@ writeOGR(diss.with.area2, dsn="." ,layer="CA2012_with_use",driver="ESRI Shapefil
 
 #Selection.in.QGIS <- "SRPREC" != 'UNASSIGN'  AND  "use"  = 0
 
+return.neighbor.count<-function(in.spolydf){
+        message("creating neighbor matrix")
+        in.spolydf.nb <-poly2nb(in.spolydf)
+        message("creating queens weight")
+        in.spolydf.list <- nb2listw(in.spolydf.nb, style = "W", zero.policy = T)
+        message(("formating output"))
+        num_neig <- data.frame(card(in.spolydf.nb))
+        names(num_neig)<-"num_ne"
+        in.spolydf@data$num_ne <- num_neig$num_ne
+        
+        #row.names(num_neig)<-matrix(1:nrow(num_neig)-1)
+        
+        
+        
+        #done<- spCbind(in.spolydf,num_neig)
+        return(list(in.spolydf.nb,in.spolydf.list,in.spolydf))
+}
+
+#open the eliminated one
+slivers.missing <- readOGR(".", layer = "test_lt500m2")
+
+slivers.missing.noua <- slivers.missing[which(slivers.missing@data$SRPREC != "UNASSIGN"),]
+
+
+all.slivers <- return.neighbor.count(slivers.missing)
+all.slivers.noUA <- return.neighbor.count(slivers.missing.noua)
+
+writeOGR(all.slivers[3], dsn="." ,layer="CA2012_Elim_Many_noUA",driver="ESRI Shapefile")
+
+aa<-all.slivers[[2]]
+locm <- localmoran(slivers.missing$p_obama_20, all.slivers.noUA, na.action= na.omit,zero.policy=T)
+
+
+
+
+
+writeOGR(in.spolydf2, dsn="." ,layer="CA2012_Elim_Many_noUA",driver="ESRI Shapefile")
+
 
 #major testing
+
+
+"UNASSIGN"
 
