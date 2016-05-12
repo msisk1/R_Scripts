@@ -1,11 +1,11 @@
 rm(list=ls(all=TRUE)) # clear memory
 
 # packages<- c("ggmap","sp","taRifx.geo", "SpatialTools","plyr","gmapsdistance","RJSONIO","RCurl") # list the packages that you'll need
-packages<- c("sp","RJSONIO","RCurl") # list the packages that you'll need
+packages<- c("sp","RJSONIO","RCurl","reshape2") # list the packages that you'll need
 lapply(packages, require, character.only=T) # load the packages, if they don't load you might need to install them first
 
 #setwd("/mnt/smb/Research/OTool_Distances")
-setwd("N:\\Research\\OTool_Distances")
+setwd("E:\\GISWork_2\\OTool_Distances")
 gmaps.key <- "AIzaSyDZy7HLVrouFTsULZ6D6ZyGub8iseJI_OU" 
 
 output.in.progress.file <- "unique_respon_processing.csv"
@@ -20,7 +20,7 @@ distance.field <- "dist_km"
 orig.field <- "cord_src"
 dest.field <- "cord_dest"
 max.bad <- 10
-delay <- .1
+delay <- 0
 
 
 #TO CUT DOWN THE DATASET
@@ -116,7 +116,7 @@ for (i in respon.processing$row.number){
         #print(paste(orig, dest))
         if (is.na(respon.processing[i,c(distance.field)])){
                 num.total <- num.total + 1
-                print(i)
+                print(paste(num.total,i,sep = ": "))
                 orig <- respon.processing[i,c("cord_src")] # get origin from DF in the position line 'i', column 'from'
                 dest <- respon.processing[i,c("cord_dest")]   # get origin from DF in the position line 'i', column 'to'
                 pop <- run.a.single.coord.pair.byhand(orig,dest)
@@ -143,15 +143,65 @@ for (i in respon.processing$row.number){
 print("Writing csv")
 write.csv(respon.processing,output.in.progress.file)
 
-write.as.shapefile(respon.processing[1:1000,],"temp_shape2")
 
-# cat ("Done. Press [enter] to continue")
-# line <- readline()
-write.as.shapefile<- function(table, out.name){
-        latlong <- "+init=epsg:4326"
-        google <- "+init=epsg:3857"
-        coordinates(table)=~x+y
-        proj4string(table) <- CRS(latlong)
-        writeOGR(table, dsn="." ,layer=out.name,driver="ESRI Shapefile")
+data.prep.and.processing<-function(){
+        library("rgdal")
+        all.enrollment <- read.csv("all_enrollment_centers_xy.csv")
+        all.enrollment$EnrolID <- paste("X", row.names(all.enrollment), sep="")
+        # 
+        # enroll.spdf <- SpatialPointsDataFrame(data = all.enrollment,coords = all.enrollment[c(1,2)], proj4string=CRS("+proj=longlat +datum=WGS84")) 
+        # writeOGR(enroll.spdf, dsn="." ,layer="trans_enroll",driver="ESRI Shapefile")
+        
+        
+        
+        respon.processing$responID <- paste("Y", row.names(respon.processing), sep="")
+        # respon.spdf <- SpatialPointsDataFrame(data = respon.processing,coords = respon.processing[c(2,3)], proj4string=CRS("+proj=longlat +datum=WGS84")) 
+        # writeOGR(respon.spdf, dsn="." ,layer="trans_respon",driver="ESRI Shapefile")
+        
+        
+        a1<- read.csv("closest_1-10091.csv")
+        a2<- read.csv("closest_2-23827.csv")      
+        a3<- read.csv("closest_3-40257.csv")
+        a4<- read.csv("closest_4-55110.csv")
+        a5<- read.csv("closest_5-75003.csv")
+        a6<- read.csv("closest_6-100054.csv")
+        a7<- read.csv("closest_7-130877.csv")
+        a8<- read.csv("closest_8-165019.csv")
+        a.all <- rbind(a1,a2,a3,a4,a5,a6,a7,a8)
+        
+        
+        just.road.closest <- colsplit(a.all$Name," - ",c("responID","EnrolID"))
+        
+        all.enrollment[,c(dest.field)] <- paste(all.enrollment$Y, all.enrollment$X,sep=", ")
+        enrollIDDEst <- all.enrollment[,c(dest.field,"EnrolID")]
+        just.road.closest <- merge(just.road.closest,enrollIDDEst,by="EnrolID",all.x = T)
+        remove(a1,a2,a3,a4,a5,a6,a7,a8)
+        
+        
+        
+        names(respon.processing)[names(respon.processing) == 'ID']    <- "EnrolID.OLD"
+        names(respon.processing)[names(respon.processing) == 'cord_dest']    <- "cord_dest.OLD"
+        respon.processing <- merge(respon.processing, just.road.closest, by = "responID", all.x = T)
+                
+        #respon.processing2$rerun <- ifelse(respon.processing2$EnrolID.OLD == respon.processing2$EnrolID,0,1)
+        #respon.processing2$rerun[is.na(respon.processing$dist_km)] <- 1
+        respon.processing$dist_km[respon.processing$EnrolID.OLD != respon.processing$EnrolID] <- NA
+        respon.processing$time_min[respon.processing$EnrolID.OLD != respon.processing$EnrolID] <- NA
+        
+        respon.processing <- respon.processing[order(respon.processing$row.number),]
+        respon.processing <- respon.processing[,c(13,1:12,14:15)]
+        row.names(respon.processing) <- respon.processing$row.number
+        #FINAL SECTION
+        respon.processing <- read.csv(output.in.progress.file,stringsAsFactors= F,row.names = 1)  
+        
+        respon.processing$noRoad <-0
+        respon.processing$noRoad[is.na(respon.processing$cord_dest)] <- 1
+        respon.processing$EnrolID <- ifelse(!is.na(respon.processing$EnrolID), respon.processing$EnrolID, respon.processing$EnrolID.OLD)
+        respon.processing$cord_dest <- ifelse(!is.na(respon.processing$cord_dest), respon.processing$cord_dest, respon.processing$cord_dest.OLD)
+        
+        
+        
+        write.csv(respon.processing,output.in.progress.file)
+        
         
 }
