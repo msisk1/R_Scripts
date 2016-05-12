@@ -67,3 +67,11 @@ final.merge <- merge(final.merge,ids.distances[c(2,6,7)],by = index.string.all,a
 final.merge <- merge(final.merge,pharm.distances[c(2,6,7)],by = index.string.all,all = T)
 output.merge <- merge(barber.data,final.merge,by = index.string.all, all = T)
 write.csv(output.merge,"Barber_All_Distances.csv")
+
+
+
+if (FALSE){
+        write.csv(unique((barber.data[,c("IDS","IDS_Locati")])),"01_IDS_List.csv", row.names = F)
+        write.csv(unique((barber.data[,c("Lab","Lab_Locati")])),"02_Lab_List.csv", row.names = F)
+        write.csv(unique((barber.data[,c("PCP","PCP_Locati")])),"03_PCP_List.csv", row.names = F)
+}
