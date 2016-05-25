@@ -6,7 +6,17 @@ lapply(packages, require, character.only=T) # load the packages, if they don't l
 
 #setwd("/mnt/smb/Research/OTool_Distances")
 setwd("E:\\GISWork_2\\OTool_Distances")
-gmaps.key <- "AIzaSyDZy7HLVrouFTsULZ6D6ZyGub8iseJI_OU" 
+gmaps.key.free <- "AIzaSyDZy7HLVrouFTsULZ6D6ZyGub8iseJI_OU" 
+key.file <- "key.txt"
+##The key file  here is just a simple text file with the google maps api key and nothing else. 
+##This is just so I can push this code to git without making the key public
+
+if (file.exists(key.file)){
+        gmaps.key <- readChar(key.file, file.info(key.file)$size)
+}else{
+        gmaps.key <- gmaps.key.free
+}
+
 
 output.in.progress.file <- "unique_respon_processing.csv"
 
@@ -21,8 +31,10 @@ orig.field <- "cord_src"
 dest.field <- "cord_dest"
 max.bad <- 10
 delay <- 0
+run.limit <- 5000
+no.data.value <- -999
 
-
+final.merge.with.original.data <- FALSE
 #TO CUT DOWN THE DATASET
 #unique.respondants <-unique.respondants[1:2505,] #SAMPLE IT DOWN TO 50 FOR TESTINF
 
@@ -98,6 +110,12 @@ run.a.single.coord.pair.byhand <- function(orig2,dest2){
                         time <- as.numeric(substr(time.line, 29, nchar(time.line))) / 60
                         message(paste("     grep success",distance,time))
                 }
+                #else if (status =="ZERO_RESULTS") {
+                else {
+                        message(paste("      total failure:",status))
+                        #time <- no.data.value
+                        #distance <- no.data.value
+                }
         }# end if json did not work
         return(list(distance,time,status))         
         
@@ -130,8 +148,15 @@ for (i in respon.processing$row.number){
                         break
                 } # end if (pop[3] == "FAIL"){
                 else{
-                        respon.processing[i,c(distance.field)] <- NA
-                        respon.processing[i,c(time.field)] <- NA
+                        if (pop[3] == "ZERO_RESULTS"){
+                                respon.processing[i,c(distance.field)] <- no.data.value
+                                respon.processing[i,c(time.field)] <- no.data.value
+                                
+                        } # end if (pop[3] == "FAIL"){ 
+                        else{
+                                respon.processing[i,c(distance.field)] <- NA
+                                respon.processing[i,c(time.field)] <- NA
+                        }
                         num.bad <- num.bad +1 
                         print(paste("number bad:", num.bad, pop[3]))
                 } # end if (pop[3] == "FAIL"){
@@ -139,9 +164,18 @@ for (i in respon.processing$row.number){
                 
         }# end if distance.field is not null
         if (num.bad > max.bad) break
+        if (num.total > run.limit) break
 }# end for loop
 print("Writing csv")
 write.csv(respon.processing,output.in.progress.file)
+
+
+if (final.merge.with.original.data){
+        all.respondants <- read.csv("all_participants_xy.csv")
+        all.respondants[,c(orig.field)] <- paste(all.respondants$y, all.respondants$x,sep=", ")
+        all.respon.with.distance <- merge(all.respondants, respon.processing, by="cord_src",all.x=T)
+        
+}
 
 
 data.prep.and.processing<-function(){
