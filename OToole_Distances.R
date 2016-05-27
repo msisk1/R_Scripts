@@ -19,7 +19,7 @@ if (file.exists(key.file)){
 
 
 output.in.progress.file <- "unique_respon_processing.csv"
-
+output.final.file <- "all_participants_withDistance.csv"
 #Import Data
 
 
@@ -171,9 +171,26 @@ write.csv(respon.processing,output.in.progress.file)
 
 
 if (final.merge.with.original.data){
+        respon.processing$dist_km[which (respon.processing$dist_km == no.data.value)] <- NA
+        respon.processing$time_min[which (respon.processing$time_min == no.data.value)] <- NA
+        just.useful.distance.data <- respon.processing[,c("Address","cord_src","dist_km","time_min","noRoad")]
+        names(just.useful.distance.data) <- c("WIC_Address","cord_src","dist_km","time_min","noRoad")
         all.respondants <- read.csv("all_participants_xy.csv")
         all.respondants[,c(orig.field)] <- paste(all.respondants$y, all.respondants$x,sep=", ")
-        all.respon.with.distance <- merge(all.respondants, respon.processing, by="cord_src",all.x=T)
+        all.respon.with.distance <- merge(all.respondants, just.useful.distance.data, by="cord_src",all.x=T)
+        all.respon.with.distance <- all.respon.with.distance[order(all.respon.with.distance$participantid),] 
+        all.respon.with.distance$noRoad[which (is.na(all.respon.with.distance$noRoad))] <- 1
+        all.respon.with.distance$cord_src <- NULL
+        write.csv(all.respon.with.distance,output.final.file, row.names = F)
+        
+        
+        
+        #writing it as spatial data
+        out.spdf <- all.respondants[which(!is.na(all.respondants$x)),]
+        coordinates(out.spdf)=out.spdf[c("x","y")]
+        proj4string(out.spdf)=CRS("+init=epsg:4326") # set it to lat/long
+        library("rgdal")
+        writeOGR(out.spdf, dsn="." ,layer="outname2",driver="ESRI Shapefile")        
         
 }
 
