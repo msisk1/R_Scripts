@@ -6,13 +6,18 @@ lapply(packages, require, character.only=T) # load the packages, if they don't l
 #setwd("/mnt/smb/Research/OTool_Distances")
 setwd("E:\\GISWork_2\\Regan_Conflict\\2016-06-15_TotalRebuild")
 #Functions
-open.netcdf.return.df<-function(file.name, outfield.name = "nothing", cut.year = 1980, drop.na = FALSE,lat.range=c(-40,55),lon.range = c(-30:70),write.netcdf = FALSE){
+open.netcdf.return.df<-function(file.name, outfield.name = "nothing", cut.year = 1980, drop.na = FALSE,lat.range=c(-40,55),lon.range = c(-30,70),write.netcdf = FALSE){
         min.lat = lat.range[1]
         max.lat = lat.range[2]
         min.lon = lon.range[1]
         max.lon = lon.range[2]
         ncFile <- nc_open( file.name )
         lon <- ncvar_get(ncFile, "lon")
+        if (min(lon) < -100){
+                funky.longitude <- FALSE
+        }else{
+                funky.lonitude <- TRUE
+        }
         lat <- ncvar_get(ncFile, "lat")
         time <- ncvar_get(ncFile, "time")
         
@@ -48,8 +53,15 @@ open.netcdf.return.df<-function(file.name, outfield.name = "nothing", cut.year =
         remove(tustr,unit,tdstr,tmonth,tday,tyear)
         
         
-        LatIdx <- which( ncFile$dim$lat$vals > min.lat & ncFile$dim$lat$vals <max.lat)
-        LonIdx <- c(which( ncFile$dim$lon$vals > (min.lon+360)) , which( ncFile$dim$lon$vals < (max.lon)) )
+        LatIdx <- which( ncFile$dim$lat$vals >= min.lat & ncFile$dim$lat$vals <=max.lat)
+        if (funky.longitude){
+                LonIdx <- c(which( ncFile$dim$lon$vals > (min.lon+360)) , which( ncFile$dim$lon$vals < (max.lon)) )
+        }else{
+                LonIdx <- which( ncFile$dim$lon$vals >= min.lon & ncFile$dim$lon$vals <= max.lon)
+                
+        }
+        
+        
         TimeIdx <- which(time.readable >= paste(cut.year,"-1-1",sep=""))
         par.val <- ncvar_get( ncFile, field.name)[ LonIdx, LatIdx,TimeIdx]
         lon.subset <- ncFile$dim$lon$val[LonIdx]
@@ -93,13 +105,76 @@ open.netcdf.return.df<-function(file.name, outfield.name = "nothing", cut.year =
 
 
 convert.necdfs <- FALSE
+process.ECI.soilMoisture <- FALSE
+
+#1a). Processing the ESI Soil Moisture daily data
+netcdf.folder <- "E:\\GISWork_2\\Regan_Conflict\\NetCDF\\" 
+
+if (process.ECI.soilMoisture){
+        
+        #Local Variables
+        
+        esc.root.folder <- "E:\\GISWork_2\\Regan_Conflict\\NetCDF\\ESA_SoilMoisture\\"
+        out.file <- "ESA_sm2_all_monthly.nc"
+        temp.file <- "ESA_sm2_all_monthly_temp.nc"
+        wd.old <- getwd()
+        setwd(esc.root.folder)
+        clip.and.merge.ECI.sm <- function(var.to.subset = "sm", root.path = "E:\\GISWork_2\\Regan_Conflict\\NetCDF\\ESA_SoilMoisture\\", year, lat.range=c(-40,55), lon.range = c(-30,70)){
+                path <- paste(root.path,year,sep="")
+                #print(year)
+                # print (path)
+                all.file <- paste(year,"_all_cut.nc",sep = "")
+                monthly.file <- paste(year,"_monthly.nc",sep = "")
+                box_mergetime(var = var.to.subset,path = path,"E*.nc",lon1 = lon.range[1],lon2 = lon.range[2],lat1=lat.range[1],lat2 = lat.range[2],all.file)
+                monmean(var.to.subset, all.file, monthly.file)
+                
+        }
+        #create an aggrigate daily file for each year
+        for (each.year in years){
+                print(each.year)
+                clip.and.merge.ECI.sm(year = each.year)
+        }
+        #merge each yearly file into a massive daily file
+        box_mergetime(var = "sm",path = getwd(),"_all_cut.nc",lon1 = lon.range[1],lon2 = lon.range[2],lat1=lat.range[1],lat2 = lat.range[2],"allDaily.nc")
+        #calculate the montly mean for each the massive daily file (this is because the last timestamp is technically in the month before, so january/december might be messed up)
+        monmean("sm", out.file, "all_monthly.nc")
+        #reopen the file and rewrite it to ditch some variables from the date range        
+        ncFile <- nc_open( temp.file )
+        lon <- ncvar_get(ncFile, "lon")
+        lat <- ncvar_get(ncFile, "lat")
+        time <- ncvar_get(ncFile, "time")
+        field.name <- names(ncFile$var)[[1]]
+        field.description <- ncatt_get(ncFile,field.name , "long_name")$value
+        field.units <-  ncatt_get(ncFile,field.name , "units")$value
+        time.units <- ncatt_get(ncFile, 'time', "units")$value
+        par.val <- ncvar_get( ncFile, field.name)
+        
+        
+        
+        dim_x <- ncdim_def("Longitude","degrees_east",lon)
+        dim_y <- ncdim_def("Latitude","degrees_north",lat)
+        dim_time <- ncdim_def("time",time.units,time)
+        var_out <- ncvar_def( field.name, units = field.units, longname= field.description, list(dim_x,dim_y,dim_time), -9999, prec="double")
+        
+        nc = nc_create(paste(netcdf.folder, out.file,sep = ""), var_out)
+        ncvar_put(nc, var_out, par.val)
+        nc_close(nc)
+        nc_close(ncFile)
+        
+        
+        
+        setwd(wd.old)
+        
+}
 
 
 #1). converting netcdfs to csv
 
 
+
+
 if (convert.necdfs){
-        netcdf.folder <- "E:\\GISWork_2\\Regan_Conflict\\NetCDF\\" 
+        
         precip.data <- open.netcdf.return.df(file.name = paste(netcdf.folder,"precip.mon.mean.nc",sep = ""), outfield.name = "precip", cut.year = 1980, drop.na = F,write.netcdf = TRUE)
         write.csv(precip.data,"precipitation_old.csv",row.names = F)
         
@@ -109,9 +184,15 @@ if (convert.necdfs){
         pdsi.data <- open.netcdf.return.df(file.name = paste(netcdf.folder,"pdsi.mon.mean.selfcalibrated.nc",sep = ""), outfield.name = "pdsi", cut.year = 1980, drop.na = T,write.netcdf = TRUE)
         write.csv(pdsi.data,"pdsi.csv",row.names = F)
         
-   
+        
+        
+        
+        
+        sm2.data <- open.netcdf.return.df(file.name = paste(netcdf.folder,"pdsi.mon.mean.selfcalibrated.nc",sep = ""), outfield.name = "pdsi", cut.year = 1980, drop.na = T,write.netcdf = TRUE)
+        write.csv(pdsi.data,"pdsi.csv",row.names = F)
         
 }
+
 
 #2 adding the gridcell to the csvs
 append.gridcell.values<-function(point.df,gridcells.spdf,x.coord = "lon", y.coord = "lat", throw.out.nulls = TRUE){
@@ -260,6 +341,8 @@ write.csv(final.data, "final_all_but_SM.csv")
 
 #Working
 
+
+
 rm(list=ls(all=TRUE)) # clear memory
 
 packages<- c("ncdf4","chron","rgdal","sp","reshape2") # list the packages that you'll need
@@ -269,15 +352,16 @@ lapply(packages, require, character.only=T) # load the packages, if they don't l
 setwd("E:\\GISWork_2\\Regan_Conflict\\2016-06-15_TotalRebuild")
 
 
+netcdf.folder <- "E:\\GISWork_2\\Regan_Conflict\\NetCDF\\" 
 
-
-
-file.name <- "E:\\GISWork_2\\Regan_Conflict\\NetCDF\\air.2x2.1200.mon.anom.land.nc" 
-outfield.name = "nothing"
+file.name = paste(netcdf.folder,"pdsi.mon.mean.selfcalibrated.nc",sep = "")
+outfield.name = "pdsi"
 cut.year = 1980
-drop.na = FALSE
-cut.long.after = TRUE
+drop.na = T
 write.netcdf = TRUE
+lat.range=c(-40,55)
+lon.range = c(-30:70)
+
 
 min.lat = lat.range[1]
 max.lat = lat.range[2]
