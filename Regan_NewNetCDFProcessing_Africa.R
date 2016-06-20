@@ -199,7 +199,7 @@ if (process.ECI.soilMoisture){
 if (convert.necdfs){
         
         precip.data <- open.netcdf.return.df(file.name = paste(netcdf.folder,"precip.mon.mean.nc",sep = ""), outfield.name = "precip", cut.year = 1980, drop.na = F,write.netcdf = TRUE)
-        write.csv(precip.data,"precipitation_old.csv",row.names = F)
+        write.csv(precip.data,"precip.csv",row.names = F)
         
         temp.data <- open.netcdf.return.df(file.name = paste(netcdf.folder,"air.2x2.1200.mon.anom.land.nc",sep = ""), outfield.name = "temp", cut.year = 1980, drop.na = T,write.netcdf = TRUE)
         write.csv(temp.data,"temp.csv",row.names = F)
@@ -208,12 +208,23 @@ if (convert.necdfs){
         write.csv(pdsi.data,"pdsi.csv",row.names = F)
         
         
-        
-        
-        
-        sm2.data <- open.netcdf.return.df(file.name = paste(netcdf.folder,"ESA_sm2_all_monthly.nc",sep = ""), outfield.name = "sm", cut.year = 1980, drop.na = T,write.netcdf = TRUE)
-        write.csv(sm2.data,"sm.csv",row.names = F)
-        
+        sm2.data <- open.netcdf.return.df(file.name = paste(netcdf.folder,"ESA_sm2_all_monthly.nc",sep = ""), outfield.name = "sm", cut.year = 1980, drop.na = T,write.netcdf = TRUE, funky.override = TRUE)
+        #write.csv(sm2.data,"sm.csv",row.names = F)
+        first <- T
+        for (i in  seq(1, nrow(sm2.data),1000000)){
+                higher <- (i + 999999)
+                if (higher > nrow(sm2.data)){
+                        higher <- nrow(sm2.data)
+                }
+                print(paste(i,as.integer(higher)))
+                if (first){
+                        write.table(sm2.data[i:higher,],"sm_ECI.csv",row.names = F, append = F,sep=",")
+                        first <- F
+                }else{
+                        write.table(sm2.data[i:higher,],"sm_ECI.csv",row.names = F, col.names = F, append = T,sep=",")
+                }
+        }
+        remove(i, higher, first)
 }
 
 
