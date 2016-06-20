@@ -1,22 +1,43 @@
 rm(list=ls(all=TRUE)) # clear memory
 
-packages<- c("ncdf4","chron","rgdal","sp","reshape2") # list the packages that you'll need
+packages<- c("ncdf4","chron","rgdal","sp","reshape2","cmsaf") # list the packages that you'll need
 lapply(packages, require, character.only=T) # load the packages, if they don't load you might need to install them first
 
 #setwd("/mnt/smb/Research/OTool_Distances")
 setwd("E:\\GISWork_2\\Regan_Conflict\\2016-06-15_TotalRebuild")
 #Functions
-open.netcdf.return.df<-function(file.name, outfield.name = "nothing", cut.year = 1980, drop.na = FALSE,lat.range=c(-40,55),lon.range = c(-30,70),write.netcdf = FALSE){
+open.netcdf.return.df<-function(file.name, outfield.name = "nothing", cut.year = 1980, drop.na = FALSE,lat.range=c(-40,55),lon.range = c(-30,70),write.netcdf = FALSE, funky.override = FALSE){
+        if (FALSE){
+                
+                
+                
+                file.name = paste(netcdf.folder,"ESA_sm2_all_monthly.nc",sep = "")
+                
+                funky.override <- TRUE
+                
+                
+                outfield.name = "sm"
+                cut.year = 1980
+                drop.na = T
+                write.netcdf = TRUE
+                
+                
+                
+                
+                lat.range=c(-40,55)
+                lon.range = c(-30,70)
+        }
+        
         min.lat = lat.range[1]
         max.lat = lat.range[2]
         min.lon = lon.range[1]
         max.lon = lon.range[2]
         ncFile <- nc_open( file.name )
         lon <- ncvar_get(ncFile, "lon")
-        if (min(lon) < -100){
-                funky.longitude <- FALSE
+        if (funky.override | (min(lon) < -100) ){
+                funky.longitude  <- FALSE
         }else{
-                funky.lonitude <- TRUE
+                funky.longitude <- TRUE
         }
         lat <- ncvar_get(ncFile, "lat")
         time <- ncvar_get(ncFile, "time")
@@ -56,8 +77,10 @@ open.netcdf.return.df<-function(file.name, outfield.name = "nothing", cut.year =
         LatIdx <- which( ncFile$dim$lat$vals >= min.lat & ncFile$dim$lat$vals <=max.lat)
         if (funky.longitude){
                 LonIdx <- c(which( ncFile$dim$lon$vals > (min.lon+360)) , which( ncFile$dim$lon$vals < (max.lon)) )
+                scale <- 360
         }else{
                 LonIdx <- which( ncFile$dim$lon$vals >= min.lon & ncFile$dim$lon$vals <= max.lon)
+                scale <- 0
                 
         }
         
@@ -73,7 +96,7 @@ open.netcdf.return.df<-function(file.name, outfield.name = "nothing", cut.year =
         val.as.df <-data.frame(tmp.vec.long)
         df.out <- expand.grid(lon.subset, lat.subset, time.subset)
         netcdf.for.export <- cbind(df.out, val.as.df)
-        
+        remove(val.as.df)
         if (outfield.name == "nothing"){ outfield.name  <- field.name}
         names(netcdf.for.export) <- c("lon", "lat","date",outfield.name)
         netcdf.for.export$time <- as.Date(chron(netcdf.for.export$date / div.num, origin=origin.date, out.format = "y-m-d"))
@@ -87,8 +110,8 @@ open.netcdf.return.df<-function(file.name, outfield.name = "nothing", cut.year =
         
         #Creating subset netcdf output: works but need to switch the indices so it does not spread across the world
         if (write.netcdf){
-                dim_x <- ncdim_def("Longitude","degrees_east",lon.subset-360)
-                dim_y <- ncdim_def("Latitude","degrees_north",lat.subset)
+                dim_x <- ncdim_def("lon","degrees_east",lon.subset-scale)
+                dim_y <- ncdim_def("lat","degrees_north",lat.subset)
                 dim_time <- ncdim_def("time",time.units,time.subset)
                 var_out <- ncvar_def( field.name, units = field.units, longname= field.description, list(dim_x,dim_y,dim_time), -9999, prec="double")
                 
@@ -151,12 +174,12 @@ if (process.ECI.soilMoisture){
         
         
         
-        dim_x <- ncdim_def("Longitude","degrees_east",lon)
-        dim_y <- ncdim_def("Latitude","degrees_north",lat)
-        dim_time <- ncdim_def("time",time.units,time)
+        dim_x <- ncdim_def("lon","degrees_east",lon)
+        dim_y <- ncdim_def("lat","degrees_north",lat)
+        dim_time <- ncdim_def("time",time.units,as.integer(time))
         var_out <- ncvar_def( field.name, units = field.units, longname= field.description, list(dim_x,dim_y,dim_time), -9999, prec="double")
         
-        nc = nc_create(paste(netcdf.folder, out.file,sep = ""), var_out)
+        nc <- nc_create(paste(netcdf.folder, out.file,sep = ""), var_out)
         ncvar_put(nc, var_out, par.val)
         nc_close(nc)
         nc_close(ncFile)
@@ -188,8 +211,8 @@ if (convert.necdfs){
         
         
         
-        sm2.data <- open.netcdf.return.df(file.name = paste(netcdf.folder,"pdsi.mon.mean.selfcalibrated.nc",sep = ""), outfield.name = "pdsi", cut.year = 1980, drop.na = T,write.netcdf = TRUE)
-        write.csv(pdsi.data,"pdsi.csv",row.names = F)
+        sm2.data <- open.netcdf.return.df(file.name = paste(netcdf.folder,"ESA_sm2_all_monthly.nc",sep = ""), outfield.name = "sm", cut.year = 1980, drop.na = T,write.netcdf = TRUE)
+        write.csv(sm2.data,"sm.csv",row.names = F)
         
 }
 
@@ -340,106 +363,4 @@ write.csv(final.data, "final_all_but_SM.csv")
 
 
 #Working
-
-
-
-rm(list=ls(all=TRUE)) # clear memory
-
-packages<- c("ncdf4","chron","rgdal","sp","reshape2") # list the packages that you'll need
-lapply(packages, require, character.only=T) # load the packages, if they don't load you might need to install them first
-
-#setwd("/mnt/smb/Research/OTool_Distances")
-setwd("E:\\GISWork_2\\Regan_Conflict\\2016-06-15_TotalRebuild")
-
-
-netcdf.folder <- "E:\\GISWork_2\\Regan_Conflict\\NetCDF\\" 
-
-file.name = paste(netcdf.folder,"pdsi.mon.mean.selfcalibrated.nc",sep = "")
-outfield.name = "pdsi"
-cut.year = 1980
-drop.na = T
-write.netcdf = TRUE
-lat.range=c(-40,55)
-lon.range = c(-30:70)
-
-
-min.lat = lat.range[1]
-max.lat = lat.range[2]
-min.lon = lon.range[1]
-max.lon = lon.range[2]
-ncFile <- nc_open( file.name )
-lon <- ncvar_get(ncFile, "lon")
-lat <- ncvar_get(ncFile, "lat")
-time <- ncvar_get(ncFile, "time")
-
-
-field.name <- names(ncFile$var)[[1]]
-field.description <- ncatt_get(ncFile,field.name , "long_name")$value
-field.units <-  ncatt_get(ncFile,field.name , "units")$value
-time.units <- ncatt_get(ncFile, 'time', "units")$value
-
-
-#Processing Time
-tustr <- strsplit(time.units, " ")
-unit<- unlist(tustr)[1]
-tdstr <- strsplit(unlist(tustr)[3], "-")
-tmonth = as.integer(unlist(tdstr)[2])
-tday = as.integer(unlist(tdstr)[3])
-tyear = as.integer(unlist(tdstr)[1])
-if (unit=="days"){
-        div.num <- 1
-}else if (unit=="seconds"){
-        div.num <- 86400
-}else if (unit=="hours"){
-        div.num <- 24
-}else {
-        message("ERROR: Fix the time")
-        return(NULL)
-        stop()
-}
-
-origin.date <- c(month=tmonth,day=tday,year=tyear)
-time.readable = as.Date(chron(time / div.num, origin=origin.date, out.format = "y-m-d"))
-# New pre Data.frame cutting based on time
-remove(tustr,unit,tdstr,tmonth,tday,tyear)
-
-
-LatIdx <- which( ncFile$dim$lat$vals > min.lat & ncFile$dim$lat$vals <max.lat)
-LonIdx <- c(which( ncFile$dim$lon$vals > (min.lon+360)) , which( ncFile$dim$lon$vals < (max.lon)) )
-TimeIdx <- which(time.readable >= paste(cut.year,"-1-1",sep=""))
-par.val <- ncvar_get( ncFile, field.name)[ LonIdx, LatIdx,TimeIdx]
-lon.subset <- ncFile$dim$lon$val[LonIdx]
-lat.subset <- ncFile$dim$lat$val[LatIdx]
-time.subset <- ncFile$dim$time$val[TimeIdx]
-
-
-tmp.vec.long <- as.vector(par.val)
-val.as.df <-data.frame(tmp.vec.long)
-df.out <- expand.grid(lon.subset, lat.subset, time.subset)
-netcdf.for.export <- cbind(df.out, val.as.df)
-
-if (outfield.name == "nothing"){ outfield.name  <- field.name}
-names(netcdf.for.export) <- c("lon", "lat","date",outfield.name)
-netcdf.for.export$time <- as.Date(chron(netcdf.for.export$date / div.num, origin=origin.date, out.format = "y-m-d"))
-netcdf.for.export$date <- NULL
-if (drop.na){
-        netcdf.for.export <- netcdf.for.export[complete.cases(netcdf.for.export),] 
-}
-
-#outputing intermediate
-#write.csv(netcdf.for.export[which(netcdf.for.export$time == paste(cut.year,"-1-1",sep="")),],"ally2new.csv", row.names = F)
-
-#Creating subset netcdf output: works but need to switch the indices so it does not spread across the world
-if (write.netcdf){
-        dim_x <- ncdim_def("Longitude","degrees_east",lon.subset-360)
-        dim_y <- ncdim_def("Latitude","degrees_north",lat.subset)
-        dim_time <- ncdim_def("time",time.units,time.subset)
-        var_out <- ncvar_def( field.name, units = field.units, longname= field.description, list(dim_x,dim_y,dim_time), -9999, prec="double")
-        
-        nc = nc_create(paste(field.name,"_subset.nc",sep = ""), var_out)
-        ncvar_put(nc, var_out, par.val)
-        nc_close(nc)
-}
-nc_close(ncFile)
-return(netcdf.for.export)
 
