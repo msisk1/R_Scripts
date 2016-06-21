@@ -229,14 +229,14 @@ if (convert.necdfs){
 
 
 #2 adding the gridcell to the csvs
-append.gridcell.values<-function(point.df,gridcells.spdf,x.coord = "lon", y.coord = "lat", throw.out.nulls = TRUE){
-        
+append.gridcell.values<-function(point.df,gridcells.spdf,x.coord = "lon", y.coord = "lat", time.field = "time", throw.out.nulls = TRUE){
+       
         unique.latlons <- unique(point.df[,c(x.coord,y.coord)])
-        if(min(unique.latlons$lon)> 0){
-                unique.latlons$lon <- unique.latlons$lon - 180
-                point.df$lon<- point.df$lon-180
-                print("moved coords")
-        }
+        # if(min(unique.latlons$lon)> 0){
+        #         unique.latlons$lon <- unique.latlons$lon - 180
+        #         point.df$lon<- point.df$lon-180
+        #         print("moved coords")
+        # }
         
         unique.ll.spatial <- unique.latlons
         
@@ -262,8 +262,8 @@ append.gridcell.values<-function(point.df,gridcells.spdf,x.coord = "lon", y.coor
         if (throw.out.nulls){
                 out.data<-out.data[!is.na(out.data$GridID),]
         }
-        out.data$Year <- substr(out.data$date,1,4)
-        out.data$month <- substr(out.data$date,6,7)
+        out.data$Year <- substr(out.data[,time.field],1,4)
+        out.data$month <- substr(out.data[,time.field],6,7)
         #table.to.process$GC_Month <- paste(table.to.process$GridID,table.to.process$month, sep='-') #creates the year month field
         out.data$yearMonth <- paste(out.data$Year, out.data$month, sep='') #creates the year month field
         out.data$gymID <- paste(out.data$GridID, out.data$yearMonth, sep='-') #creates the gymID field  
@@ -296,9 +296,9 @@ createStatsTable <- function(in.table, summary.variable, aggregate.variable){
         
 }#end createStatsTable
 
-grid.cells <- readOGR("Shapefiles", layer = "WorldGridcells_2d30s")
+grid.cells <- readOGR("Shapefiles", layer = "Grid_Cells_2d30s")
 if (!file.exists("precip_table.csv")){
-        precip.data <- read.csv("precipitation.csv", stringsAsFactors = T)
+        precip.data <- read.csv("precip.csv", stringsAsFactors = T)
         
         precip.data.processed <- append.gridcell.values(point.df = precip.data,gridcells.spdf = grid.cells)
         precip.table <- createStatsTable(in.table= precip.data.processed,summary.variable= "precip",aggregate.variable="gymID")
@@ -327,49 +327,80 @@ if (!file.exists("pdsi_table.csv")){
 }else{
         pdsi.table <- read.csv("pdsi_table.csv")
 }
-if (!file.exists("smold_table.csv")){
-        sm.data <- read.csv("soilmoisture_oldTotal.csv", stringsAsFactors = T)
+if (!file.exists("sm_ECI_table.csv")){
+        sm.data <- read.csv("sm_ECI.csv", stringsAsFactors = T)
         
         sm.data.processed <- append.gridcell.values(point.df = sm.data,gridcells.spdf = grid.cells)
-        sm.table <- createStatsTable(in.table= sm.data.processed,summary.variable= "smOLD",aggregate.variable="gymID")
-        write.csv(sm.table,"smold_table.csv", row.names = F)
+        
+        first <- T
+        for (i in  seq(1, nrow(sm.data.processed),1000000)){
+                higher <- (i + 999999)
+                if (higher > nrow(sm.data.processed)){
+                        higher <- nrow(sm.data.processed)
+                }
+                print(paste(i,as.integer(higher)))
+                if (first){
+                        write.table(sm.data.processed[i:higher,],"sm_ECI_procc.csv",row.names = F, append = F,sep=",")
+                        first <- F
+                }else{
+                        write.table(sm.data.processed[i:higher,],"sm_ECI_procc.csv",row.names = F, col.names = F, append = T,sep=",")
+                }
+        }
+        remove(i, higher, first)
+        sm.data.processed <- read.csv("sm_ECI_procc.csv", stringsAsFactors = T)
+        
+        
+        sm.table <- createStatsTable(in.table= sm.data.processed,summary.variable= "sm",aggregate.variable="gymID")
+        write.csv(sm.table,"sm_ECI_table.csv", row.names = F)
 }else{
-        sm.table <- read.csv("smold_table.csv", row.names = F)
+        sm.table <- read.csv("sm_ECI_table.csv")
 }
 
 #3 Aggrigating, merging and duplicating on gwno
-table.gwno <- grid.cells@data
-table.gwno <- table.gwno[complete.cases(table.gwno),]
-# write.csv(table.gwno,"table_GWNO.CSV")
-table.gwno <- table.gwno[,c("Id","All_GWNO")]
-names(table.gwno) <- c("GridID", "All_GWNO")
-
-
-
-
-master.table <- merge(precip.table,pdsi.table,by="gymID", all=T)
-master.table <- merge(master.table,temp.table,by="gymID", all=T)
-master.table$GridID <- colsplit(master.table$gymID,"-",c("gridID","YearMonth"))[,1]
-master.table <- merge(master.table,table.gwno,by="GridID",all.x=T)
-master.table02 <- master.table[!is.na(master.table$All_GWNO),]
-
-#Keep temp varience only
-master.table02$precip_min <- NULL
-master.table02$precip_max <- NULL
-master.table02$pdsi_min <- NULL
-master.table02$pdsi_max <- NULL
-master.table02$precip_n <- NULL
-master.table02$pdsi_n <- NULL
-names(master.table02)[names(master.table02) == 'pdsi_mean']   <- "pdsi"
-names(master.table02)[names(master.table02) == 'precip_mean']   <- "precip"
-
-
-#Splitting off into the 
-y<-strsplit(as.character( master.table02$All_GWNO)  , " ", fixed=TRUE)
-final.data <- data.frame(GWNO_sing= unlist(y), master.table02[ rep(1:nrow(master.table02), sapply(y, length)) , -1 ] )
-
-
-write.csv(final.data, "final_all_but_SM.csv")
+if (aggrigate.environmental.data){
+        table.gwno <- grid.cells@data
+        table.gwno <- table.gwno[complete.cases(table.gwno),]
+        # write.csv(table.gwno,"table_GWNO.CSV")
+        table.gwno <- table.gwno[,c("Id","All_GWNO")]
+        names(table.gwno) <- c("GridID", "All_GWNO")
+        
+        
+        
+        
+        master.table <- merge(precip.table,pdsi.table,by="gymID", all=T)
+        master.table <- merge(master.table,temp.table,by="gymID", all=T)
+        master.table <- merge(master.table,sm.table,by="gymID", all=T)
+        
+        master.table$GridID <- colsplit(master.table$gymID,"-",c("GridID","YearMonth"))[,1]
+        master.table <- merge(master.table,table.gwno,by="GridID",all.x=T)
+        
+        
+        master.table02 <- master.table[!is.na(master.table$All_GWNO),]
+        
+        #Keep temp varience only
+        master.table02$precip_min <- NULL
+        master.table02$precip_max <- NULL
+        master.table02$pdsi_min <- NULL
+        master.table02$pdsi_max <- NULL
+        master.table02$precip_n <- NULL
+        master.table02$pdsi_n <- NULL
+        names(master.table02)[names(master.table02) == 'pdsi_mean']   <- "pdsi"
+        names(master.table02)[names(master.table02) == 'precip_mean']   <- "precip"
+        write.csv(master.table02, "EnvironmentalVariables_NoDuplication.csv", row.names = FALSE)
+        env.nodup <- master.table02
+        
+        #Splitting off into the 
+        y<-strsplit(as.character( master.table02$All_GWNO)  , " ", fixed=TRUE)
+        final.data <- data.frame(GWNO_sing= unlist(y), master.table02[ rep(1:nrow(master.table02), sapply(y, length)) , -1 ] )
+        end.withdup <- final.data
+        
+        write.csv(final.data, "EnvironmentalVariables_WithDuplication.csv", row.names = FALSE)
+        
+}else{
+        env.nodup <- read.csv("EnvironmentalVariables_NoDuplication.csv", stringsAsFactors =  FALSE)
+        end.withdup <-read.csv("EnvironmentalVariables_WithDuplication.csv", stringsAsFactors =  FALSE)
+        
+}
 
 
 
