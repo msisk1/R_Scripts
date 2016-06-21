@@ -67,4 +67,56 @@ test<- IntersectPtWithPoly(respon.spdf,blocks.spdf)
 
  #gives the projection information
 
+#A leaflet builder
+rm(list=ls(all=TRUE)) # clear memory
+
+packages<- c("maptools","rgdal","leaflet","raster") # list the packages that you'll need
+lapply(packages, require, character.only=T) # load the packages, if they don't load you might need to install them first
+
+setwd("E:\\GISWork_2\\Ferri_ImaginaryPlaces2\\Map\\")
+
+latlong <- "+init=epsg:4326"
+google <- "+init=epsg:3857"
+
+in.csv <- read.csv("2015_StudentPoints.csv")
+coordinates(in.csv) = ~Lon + Lat
+proj4string(in.csv) = CRS(latlong)
+
+
+writeOGR(obj = in.csv, dsn= "student", layer = "student", driver="GeoJSON")
+writeOGR(obj = in.csv, dsn= "Old", layer = "student_points", driver="ESRI Shapefile")
+
+shapes = readOGR(".", "data")
+
+qqq<- readOGR(dsn= ".", layer = "student_points")
+writeOGR(obj = qqq, dsn= ".", layer = "VasiDay1_points", driver="GeoJSON", verbose=TRUE)
+plot(base.file)
+qq <- leaflet() %>%
+        #setView(lng = 12.5, lat = 41.9, zoom = 12) %>% 
+        #         addRasterImage(image) %>% 
+        addTiles(group = "OpenStreetMap") %>%  # Add default OpenStreetMap map tiles
+        addMarkers(data = in.csv, 
+                   lat = ~ Latitude, 
+                   lng = ~ Longitude, 
+                   popup = fw$Name) %>%
+        qq
+
+addRasterImage(r, colors = pal, opacity = 0.8)
+
+
+#A kml conversion using gdal
+library("rgdal")
+setwd("C:\\Temp")
+
+google = "+init=epsg:3857" #the coordinte system code for google's web mercator projection
+
+
+ogrListLayers("Roma Rioni.kml") #this gives the list of layers in the kml. Usually it requires some experimentation to get the one that you need
+
+
+rioni <- readOGR(dsn = "Roma Rioni.kml", layer = "Livello senza titolo")
+rioni_google = spTransform(rioni, CRS(google))  #converts it from lat/long to web mercator
+
+
+writeOGR(rioni_google, dsn="." ,layer="RomeRioni_WebMerc",driver="ESRI Shapefile")
 
