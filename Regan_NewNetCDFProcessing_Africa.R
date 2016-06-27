@@ -1,10 +1,16 @@
 rm(list=ls(all=TRUE)) # clear memory
 
-packages<- c("ncdf4","chron","rgdal","sp","reshape2","cmsaf") # list the packages that you'll need
+packages<- c("ncdf4","chron","rgdal","sp","reshape2","cmsaf","stringr", "foreign") # list the packages that you'll need
 lapply(packages, require, character.only=T) # load the packages, if they don't load you might need to install them first
 
 #setwd("/mnt/smb/Research/OTool_Distances")
 setwd("E:\\GISWork_2\\Regan_Conflict\\2016-06-15_TotalRebuild")
+
+# cc_year GridYear gymID gridID id_all Year Month lat lon  ccode gwnos_conflict 
+#  clyppt1_mean sltppt1_mean sndppt1_mean  
+
+
+
 #Functions
 open.netcdf.return.df<-function(file.name, outfield.name = "nothing", cut.year = 1980, drop.na = FALSE,lat.range=c(-40,55),lon.range = c(-30,70),write.netcdf = FALSE, funky.override = FALSE){
         if (FALSE){
@@ -129,6 +135,8 @@ open.netcdf.return.df<-function(file.name, outfield.name = "nothing", cut.year =
 
 convert.necdfs <- FALSE
 process.ECI.soilMoisture <- FALSE
+aggrigate.environmental.data <- FALSE
+create.env.stats.tables <- FALSE
 
 #1a). Processing the ESI Soil Moisture daily data
 netcdf.folder <- "E:\\GISWork_2\\Regan_Conflict\\NetCDF\\" 
@@ -229,8 +237,28 @@ if (convert.necdfs){
 
 
 #2 adding the gridcell to the csvs
-append.gridcell.values<-function(point.df,gridcells.spdf,x.coord = "lon", y.coord = "lat", time.field = "time", throw.out.nulls = TRUE){
-       
+append.gridcell.values<-function(point.df,gridcells.spdf,x.coord = "lon", y.coord = "lat", time.field = "time", throw.out.nulls = TRUE, date.string = "%Y/%m/%d"){
+        if(FALSE){
+                rm(list=ls(all=TRUE)) # clear memory
+                
+                packages<- c("ncdf4","chron","rgdal","sp","reshape2","cmsaf","stringr") # list the packages that you'll need
+                lapply(packages, require, character.only=T) # load the packages, if they don't load you might need to install them first
+                
+                #setwd("/mnt/smb/Research/OTool_Distances")
+                setwd("E:\\GISWork_2\\Regan_Conflict\\2016-06-15_TotalRebuild")
+                conflicts.all <- read.csv("DataTables\\georeferenced conflict data.csv",stringsAsFactors = F)
+                conflicts <- conflicts.all[,c("gwno","lat","lon","date_start","type_of_violence")]
+                grid.cells <- readOGR("Shapefiles", layer = "Grid_Cells_2d30s")
+                
+                x.coord = "lon"
+                y.coord = "lat"
+                
+                point.df = conflicts
+                gridcells.spdf = grid.cells
+                time.field = "date_start"
+                date.string =  "%m/%d/%Y"
+                throw.out.nulls = TRUE
+        }
         unique.latlons <- unique(point.df[,c(x.coord,y.coord)])
         # if(min(unique.latlons$lon)> 0){
         #         unique.latlons$lon <- unique.latlons$lon - 180
@@ -262,8 +290,10 @@ append.gridcell.values<-function(point.df,gridcells.spdf,x.coord = "lon", y.coor
         if (throw.out.nulls){
                 out.data<-out.data[!is.na(out.data$GridID),]
         }
-        out.data$Year <- substr(out.data[,time.field],1,4)
-        out.data$month <- substr(out.data[,time.field],6,7)
+        out.data$dater <- as.Date(out.data[,time.field], date.string)
+        out.data$Year <- as.numeric(format(out.data$dater, format = "%Y"))
+        out.data$month <-  as.numeric(format(out.data$dater, format = "%m"))
+        out.data$dater<- NULL
         #table.to.process$GC_Month <- paste(table.to.process$GridID,table.to.process$month, sep='-') #creates the year month field
         out.data$yearMonth <- paste(out.data$Year, out.data$month, sep='') #creates the year month field
         out.data$gymID <- paste(out.data$GridID, out.data$yearMonth, sep='-') #creates the gymID field  
@@ -297,64 +327,67 @@ createStatsTable <- function(in.table, summary.variable, aggregate.variable){
 }#end createStatsTable
 
 grid.cells <- readOGR("Shapefiles", layer = "Grid_Cells_2d30s")
-if (!file.exists("precip_table.csv")){
-        precip.data <- read.csv("precip.csv", stringsAsFactors = T)
-        
-        precip.data.processed <- append.gridcell.values(point.df = precip.data,gridcells.spdf = grid.cells)
-        precip.table <- createStatsTable(in.table= precip.data.processed,summary.variable= "precip",aggregate.variable="gymID")
-        write.csv(precip.table,"precip_table.csv", row.names = F)
-        
-} else{
-        precip.table <- read.csv("precip_table.csv")
-}
-
-if (!file.exists("temp_table.csv")){
-        temp.data <- read.csv("temp.csv", stringsAsFactors = T)
-        
-        temp.data.processed <- append.gridcell.values(point.df = temp.data,gridcells.spdf = grid.cells)
-        temp.table <- createStatsTable(in.table= temp.data.processed,summary.variable= "temp",aggregate.variable="gymID")
-        write.csv(temp.table,"temp_table.csv", row.names = F)
-}else{
-        temp.table <- read.csv("temp_table.csv")
-}
-
-if (!file.exists("pdsi_table.csv")){
-        pdsi.data <- read.csv("pdsi.csv", stringsAsFactors = T)
-        
-        pdsi.data.processed <- append.gridcell.values(point.df = pdsi.data,gridcells.spdf = grid.cells)
-        pdsi.table <- createStatsTable(in.table= pdsi.data.processed,summary.variable= "pdsi",aggregate.variable="gymID")
-        write.csv(pdsi.table,"pdsi_table.csv", row.names = F)
-}else{
-        pdsi.table <- read.csv("pdsi_table.csv")
-}
-if (!file.exists("sm_ECI_table.csv")){
-        sm.data <- read.csv("sm_ECI.csv", stringsAsFactors = T)
-        
-        sm.data.processed <- append.gridcell.values(point.df = sm.data,gridcells.spdf = grid.cells)
-        
-        first <- T
-        for (i in  seq(1, nrow(sm.data.processed),1000000)){
-                higher <- (i + 999999)
-                if (higher > nrow(sm.data.processed)){
-                        higher <- nrow(sm.data.processed)
-                }
-                print(paste(i,as.integer(higher)))
-                if (first){
-                        write.table(sm.data.processed[i:higher,],"sm_ECI_procc.csv",row.names = F, append = F,sep=",")
-                        first <- F
-                }else{
-                        write.table(sm.data.processed[i:higher,],"sm_ECI_procc.csv",row.names = F, col.names = F, append = T,sep=",")
-                }
+if (create.env.stats.tables){
+        if (!file.exists("precip_table.csv")){
+                precip.data <- read.csv("precip.csv", stringsAsFactors = T)
+                
+                precip.data.processed <- append.gridcell.values(point.df = precip.data,gridcells.spdf = grid.cells)
+                precip.table <- createStatsTable(in.table= precip.data.processed,summary.variable= "precip",aggregate.variable="gymID")
+                write.csv(precip.table,"precip_table.csv", row.names = F)
+                
+        } else{
+                precip.table <- read.csv("precip_table.csv")
         }
-        remove(i, higher, first)
-        sm.data.processed <- read.csv("sm_ECI_procc.csv", stringsAsFactors = T)
         
+        if (!file.exists("temp_table.csv")){
+                temp.data <- read.csv("temp.csv", stringsAsFactors = T)
+                
+                temp.data.processed <- append.gridcell.values(point.df = temp.data,gridcells.spdf = grid.cells)
+                temp.table <- createStatsTable(in.table= temp.data.processed,summary.variable= "temp",aggregate.variable="gymID")
+                write.csv(temp.table,"temp_table.csv", row.names = F)
+        }else{
+                temp.table <- read.csv("temp_table.csv")
+        }
         
-        sm.table <- createStatsTable(in.table= sm.data.processed,summary.variable= "sm",aggregate.variable="gymID")
-        write.csv(sm.table,"sm_ECI_table.csv", row.names = F)
-}else{
-        sm.table <- read.csv("sm_ECI_table.csv")
+        if (!file.exists("pdsi_table.csv")){
+                pdsi.data <- read.csv("pdsi.csv", stringsAsFactors = T)
+                
+                pdsi.data.processed <- append.gridcell.values(point.df = pdsi.data,gridcells.spdf = grid.cells)
+                pdsi.table <- createStatsTable(in.table= pdsi.data.processed,summary.variable= "pdsi",aggregate.variable="gymID")
+                write.csv(pdsi.table,"pdsi_table.csv", row.names = F)
+        }else{
+                pdsi.table <- read.csv("pdsi_table.csv")
+        }
+        if (!file.exists("sm_ECI_table.csv")){
+                sm.data <- read.csv("sm_ECI.csv", stringsAsFactors = T)
+                
+                sm.data.processed <- append.gridcell.values(point.df = sm.data,gridcells.spdf = grid.cells)
+                
+                first <- T
+                for (i in  seq(1, nrow(sm.data.processed),1000000)){
+                        higher <- (i + 999999)
+                        if (higher > nrow(sm.data.processed)){
+                                higher <- nrow(sm.data.processed)
+                        }
+                        print(paste(i,as.integer(higher)))
+                        if (first){
+                                write.table(sm.data.processed[i:higher,],"sm_ECI_procc.csv",row.names = F, append = F,sep=",")
+                                first <- F
+                        }else{
+                                write.table(sm.data.processed[i:higher,],"sm_ECI_procc.csv",row.names = F, col.names = F, append = T,sep=",")
+                        }
+                }
+                remove(i, higher, first)
+                sm.data.processed <- read.csv("sm_ECI_procc.csv", stringsAsFactors = T)
+                
+                
+                sm.table <- createStatsTable(in.table= sm.data.processed,summary.variable= "sm",aggregate.variable="gymID")
+                write.csv(sm.table,"sm_ECI_table.csv", row.names = F)
+        }else{
+                sm.table <- read.csv("sm_ECI_table.csv")
+        } 
 }
+
 
 #3 Aggrigating, merging and duplicating on gwno
 if (aggrigate.environmental.data){
@@ -402,7 +435,78 @@ if (aggrigate.environmental.data){
         
 }
 
+#Greating single country grids filter
+grid.cell.details <- grid.cells@data
+#grid.cell.details$sing_filter <- str_length(grid.cell.details$All_GWNO)
+single.country.grids <- grid.cell.details[ which(str_length(grid.cell.details$All_GWNO)==3),]
+single.country.grids$single_filer <- 1
+single.country.grids <- single.country.grids[,c(1,5)]
+names(single.country.grids)[names(single.country.grids) == 'Id']    <- 'gridID'
+rownames(single.country.grids) <- c()
+# merged.with.filter <- merge(all.data.old,single.country.grids,by="gridID", all.x = T)
+# merged.with.filter$single_filer[is.na(merged.with.filter$single_filer)] <- 0
 
 
-#Working
+#Processing Polity data
+polity4 <- read.csv("DataTables\\p4v2014.csv")
+polity4 <- polity4[ which(polity4$year>=1980), c(2,5,8:11)] #drops the unwanted vatiables
+rownames(polity4) <- c()
 
+
+polity4$cc_year <- paste(polity4$ccode, polity4$year, sep='-')
+polity4 <- polity4[ , c(3:7)]
+rownames(polity4) <- c()
+
+#Protest Data: the actually processing can be found in the file Protest_in_R.R
+protest <- read.csv("DataTables\\Protest_Data_By_gym.csv")
+
+#Conflict Data
+conflicts <- read.csv("DataTables\\georeferenced conflict data.csv",stringsAsFactors = F)
+conflicts <- conflicts[,c("gwno","lat","lon","date_start","type_of_violence")]
+conflicts.with.gridcell <- append.gridcell.values(point.df = conflicts, gridcells.spdf = grid.cells, time.field = "date_start", date.string =  "%m/%d/%Y")
+conflict.types <- data.frame ( table ( conflicts.with.gridcell$gymID, conflicts.with.gridcell$type_of_violence ) [,] )
+names(conflict.types) <- c("cnfts_1","cnfts_2","cnfts_3")
+conflict.types$gymID <- row.names(conflict.types)
+row.names(conflict.types) <- NULL
+conflict.types <- conflict.types[,c(4,1:3)]
+conflict.types$cnfts_t <- conflict.types$cnfts_1 + conflict.types$cnfts_2 + conflict.types$cnfts_3
+
+# conflics.gym.with.IDs <- aggregate(gwno~gymID,paste,collapse=" ",data=conflicts.with.gridcell)
+
+
+conflics.gym.with.IDs <- by(conflicts.with.gridcell$gwno,conflicts.with.gridcell$gymID,function(x)paste(unique(x),collapse=" "))
+conflics.gym.with.IDs <- data.frame(id=c(conflics.gym.with.IDs))
+conflics.gym.with.IDs$gymID <- row.names(conflics.gym.with.IDs)
+row.names(conflics.gym.with.IDs) <- NULL
+names(conflics.gym.with.IDs) <- c("conflict_gwmo","gymID")
+conflict.types <- merge(conflict.types, conflics.gym.with.IDs, by="gymID", all.x = T)
+
+remove(conflicts, conflicts.with.gridcell,conflics.gym.with.IDs)
+
+#OR
+# conflict.types <- read.csv("DataTables\\2d30s_Monthly_conflictClasses.csv")
+
+
+#Soil Data
+soil.variables <- read.dbf("DataTables\\all_Soilvariables.dbf")
+soil.variables <- soil.variables[,c("GridID","CLYPPT1_Me","SLTPPT1_Me","SNDPPT1_Me")]
+
+#Capacity and Sensitivity
+iso.table2 <- read.csv("DataTables\\ISO_GWNO_02.csv",stringsAsFactors=FALSE)
+names(iso.table2)[names(iso.table2) == 'STATEABB'] <- 'ISO3'
+
+adaptation.vars <- read.csv("DataTables\\AdaptationVariables.csv",stringsAsFactors=FALSE)
+adaptation.vars$cc_year <- paste(adaptation.vars$CC, adaptation.vars$Year, sep='-')
+
+adaptation.vars <- adaptation.vars[,c("cc_year","EXPOSURE","VULNERABIL")]
+adaptation.vars[adaptation.vars == 0] <- NA
+
+capacity.raw <- read.csv("DataTables\\capacity_processed.csv")
+capacity.raw <- merge(capacity.raw,iso.table2, by= "ISO3")
+capacity.raw$cc_year <- paste(capacity.raw$CCODE, capacity.raw$Year, sep='-') #creates the GridYear field
+
+capacity.raw <- capacity.raw[,c("cc_year", "capacity")]
+
+adaptation.vars <-merge(adaptation.vars,capacity.raw,by="cc_year",all=T)
+adaptation.vars <- adaptation.vars[!with(adaptation.vars,is.na(adaptation.vars$EXPOSURE)& is.na(adaptation.vars$VULNERABIL)& is.na(adaptation.vars$capacity)),]
+remove(iso.table2,capacity.raw)
