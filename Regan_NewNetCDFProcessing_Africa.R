@@ -1,13 +1,11 @@
 rm(list=ls(all=TRUE)) # clear memory
 
-packages<- c("ncdf4","chron","rgdal","sp","reshape2","cmsaf","stringr", "foreign") # list the packages that you'll need
+packages<- c("ncdf4","chron","rgdal","sp","reshape2","cmsaf","stringr", "foreign","readstata13") # list the packages that you'll need
 lapply(packages, require, character.only=T) # load the packages, if they don't load you might need to install them first
 
 #setwd("/mnt/smb/Research/OTool_Distances")
 setwd("E:\\GISWork_2\\Regan_Conflict\\2016-06-15_TotalRebuild")
 
-# cc_year GridYear gymID gridID id_all Year Month lat lon  ccode gwnos_conflict 
-#  clyppt1_mean sltppt1_mean sndppt1_mean  
 
 
 
@@ -17,7 +15,7 @@ open.netcdf.return.df<-function(file.name, outfield.name = "nothing", cut.year =
                 
                 
                 
-                file.name = paste(netcdf.folder,"ESA_sm2_all_monthly.nc",sep = "")
+                file.name = paste(netcdf.folder,"soilw.mon.mean.v2.nc",sep = "")
                 
                 funky.override <- TRUE
                 
@@ -129,8 +127,116 @@ open.netcdf.return.df<-function(file.name, outfield.name = "nothing", cut.year =
         return(netcdf.for.export)
 }
 
+append.gridcell.values<-function(point.df,gridcells.spdf,x.coord = "lon", y.coord = "lat", time.field = "time", throw.out.nulls = TRUE, date.string = "%Y/%m/%d"){
+        if(FALSE){
+                rm(list=ls(all=TRUE)) # clear memory
+                setwd("E:\\GISWork_2\\Regan_Conflict\\2016-06-15_TotalRebuild")
+                
+                packages<- c("ncdf4","chron","rgdal","sp","reshape2","cmsaf","stringr") # list the packages that you'll need
+                lapply(packages, require, character.only=T) # load the packages, if they don't load you might need to install them first
+                
+                all.pre1980 <- read.csv("sm_nasa_pre1980.csv",stringsAsFactors = FALSE)
+                all.pre1980$Year <- NULL
+                all.pre1980$month <- NULL
+                all.pre1980$lon <- ifelse(all.pre1980$lon > 180, all.pre1980$lon - 360, all.pre1980$lon) 
+                
+                grid.cells <- readOGR("Shapefiles", layer = "Grid_Cells_2d30s")
+                
+                x.coord = "lon"
+                y.coord = "lat"
+                
+                point.df = all.pre1980
+                gridcells.spdf = grid.cells
+                time.field = "time"
+                date.string = "%Y/%m/%d"
+                throw.out.nulls = TRUE
+        }
+        unique.latlons <- unique(point.df[,c(x.coord,y.coord)])
+        # if(min(unique.latlons$lon)> 0){
+        #         unique.latlons$lon <- unique.latlons$lon - 180
+        #         point.df$lon<- point.df$lon-180
+        #         print("moved coords")
+        # }
+        
+        unique.ll.spatial <- unique.latlons
+        
+        proj <- proj4string(grid.cells) #gives the projection information
+        coordinates(unique.ll.spatial)=unique.ll.spatial[c(x.coord,y.coord)]
+        proj4string(unique.ll.spatial)=CRS(proj) # set it to lat/long
+        
+        over.df <- over(unique.ll.spatial, grid.cells) 
+        ull.with.gridID <- cbind(unique.latlons, over.df[,c("Id","All_GWNO")]) # I think this needs more work
+        
+        ull.with.gridID$ll <- paste(ull.with.gridID$lon,ull.with.gridID$lat)
+        ull.with.gridID[,x.coord] <- NULL
+        ull.with.gridID[,y.coord] <- NULL
+        
+        point.df$ll <- paste(point.df$lon,point.df$lat)
+        #out.data.old <- merge(point.df,ull.with.gridID,by="ll",all.x=T)
+        out.data <- merge(point.df,ull.with.gridID,by="ll")
+        out.data$ll <- NULL
+        
+        
+        
+        names(out.data)[names(out.data) == 'Id']    <- 'GridID' 
+        if (throw.out.nulls){
+                out.data<-out.data[!is.na(out.data$GridID),]
+        }
+        out.data$dater <- as.Date(out.data[,time.field])
+        # out.data$dater <- as.Date(out.data[,time.field], date.string) #For some reason this stopped working with the date string
+        
+                
+        out.data$Year <- as.numeric(format(out.data$dater, format = "%Y"))
+        out.data$month <-  as.numeric(format(out.data$dater, format = "%m"))
+        out.data$dater<- NULL
+        #table.to.process$GC_Month <- paste(table.to.process$GridID,table.to.process$month, sep='-') #creates the year month field
+        out.data$yearMonth <- paste(out.data$Year, out.data$month, sep='') #creates the year month field
+        out.data$gymID <- paste(out.data$GridID, out.data$yearMonth, sep='-') #creates the gymID field  
+        return(out.data)
+        
+}
+createStatsTable <- function(in.table, summary.variable, aggregate.variable){
+        print("Calculating Mean")
+        table.mean <- aggregate(in.table[[summary.variable]], list(in.table[[aggregate.variable]]), FUN=mean)
+        names(table.mean)[names(table.mean) == 'x'] <- paste0(summary.variable, "_mean")
+        
+        print("Calculating Min")
+        table.min <- aggregate(in.table[[summary.variable]], list(in.table[[aggregate.variable]]), FUN=min)
+        names(table.min)[names(table.min) == 'x'] <- paste0(summary.variable, "_min")
+        
+        print("Calculating Max")
+        table.max <- aggregate(in.table[[summary.variable]], list(in.table[[aggregate.variable]]), FUN=max)
+        names(table.max)[names(table.max) == 'x'] <- paste0(summary.variable, "_max")
+        
+        print("Calculating count")
+        table.n <- aggregate(in.table[[summary.variable]], list(in.table[[aggregate.variable]]), FUN=function(x) sum( !is.na(x)))
+        names(table.n)[names(table.n) == 'x'] <- paste0(summary.variable, "_n")
+        
+        summ.table <- merge(table.mean,table.min,by="Group.1")
+        summ.table <- merge(summ.table,table.max,by="Group.1")
+        summ.table <- merge(summ.table,table.n,by="Group.1")
+        names(summ.table)[names(summ.table) == 'Group.1'] <- aggregate.variable
+        
+        summ.table
+        
+}#end createStatsTable
 
-
+write.large.csv <- function(df,out.name){
+        first <- T
+        for (i in  seq(1, nrow(df),1000000)){
+                higher <- (i + 999999)
+                if (higher > nrow(df)){
+                        higher <- nrow(df)
+                }
+                print(paste(i,as.integer(higher)))
+                if (first){
+                        write.table(df[i:higher,],out.name,row.names = F, append = F,sep=",")
+                        first <- F
+                }else{
+                        write.table(df[i:higher,],out.name,row.names = F, col.names = F, append = T,sep=",")
+                }
+        }
+}
 
 
 convert.necdfs <- FALSE
@@ -138,8 +244,9 @@ process.ECI.soilMoisture <- FALSE
 aggrigate.environmental.data <- FALSE
 create.env.stats.tables <- FALSE
 
-#1a). Processing the ESI Soil Moisture daily data
 netcdf.folder <- "E:\\GISWork_2\\Regan_Conflict\\NetCDF\\" 
+grid.cells <- readOGR("Shapefiles", layer = "Grid_Cells_2d30s")
+#1a). Processing the ESI Soil Moisture daily data
 
 if (process.ECI.soilMoisture){
         
@@ -236,97 +343,67 @@ if (convert.necdfs){
 }
 
 
-#2 adding the gridcell to the csvs
-append.gridcell.values<-function(point.df,gridcells.spdf,x.coord = "lon", y.coord = "lat", time.field = "time", throw.out.nulls = TRUE, date.string = "%Y/%m/%d"){
-        if(FALSE){
-                rm(list=ls(all=TRUE)) # clear memory
+#1a). Using the different soil moisture measure (creating the pre-1980 mean)
+if (!file.exists("sm_nasa_1948.csv")){
+        sm.nasa.data.all <- open.netcdf.return.df(file.name = paste(netcdf.folder,"soilw.mon.mean.v2.nc",sep = ""), outfield.name = "soilw", cut.year = 1948, drop.na = F,write.netcdf = TRUE)
+        # write.csv(sm2.data,"sm_nasa_1948.csv",row.names = F)
+        sm.nasa.data.all$Year <- colsplit(sm.nasa.data.all$time,"-",c("year","month","day"))[,1]
+        sm.nasa.data.all$month <- colsplit(sm.nasa.data.all$time,"-",c("year","month","day"))[,2]        
+       
+        
+
+        
+}else{
+        if (!file.exists("sm_nasa_pre1980.csv")& !file.exists("sm_nasa_post1980.csv")){
+                sm.nasa.data.all <- read.csv("sm_nasa_1948.csv",stringsAsFactors = FALSE)        
+                all.pre1980 <- sm.nasa.data.all[which(sm.nasa.data.all$Year<1980),]
                 
-                packages<- c("ncdf4","chron","rgdal","sp","reshape2","cmsaf","stringr") # list the packages that you'll need
-                lapply(packages, require, character.only=T) # load the packages, if they don't load you might need to install them first
+                all.post1980 <- sm.nasa.data.all[which(sm.nasa.data.all$Year>=1980),]
                 
-                #setwd("/mnt/smb/Research/OTool_Distances")
-                setwd("E:\\GISWork_2\\Regan_Conflict\\2016-06-15_TotalRebuild")
-                conflicts.all <- read.csv("DataTables\\georeferenced conflict data.csv",stringsAsFactors = F)
-                conflicts <- conflicts.all[,c("gwno","lat","lon","date_start","type_of_violence")]
-                grid.cells <- readOGR("Shapefiles", layer = "Grid_Cells_2d30s")
-                
-                x.coord = "lon"
-                y.coord = "lat"
-                
-                point.df = conflicts
-                gridcells.spdf = grid.cells
-                time.field = "date_start"
-                date.string =  "%m/%d/%Y"
-                throw.out.nulls = TRUE
+                write.large.csv(df=all.pre1980, out.name = "sm_nasa_pre1980.csv")
+                write.large.csv(df=all.post1980, out.name = "sm_nasa_post1980.csv")
+        }else{
+                all.pre1980 <- read.csv("sm_nasa_pre1980.csv",stringsAsFactors = FALSE)
+                all.post1980 <-read.csv("sm_nasa_post1980.csv",stringsAsFactors = FALSE)
         }
-        unique.latlons <- unique(point.df[,c(x.coord,y.coord)])
-        # if(min(unique.latlons$lon)> 0){
-        #         unique.latlons$lon <- unique.latlons$lon - 180
-        #         point.df$lon<- point.df$lon-180
-        #         print("moved coords")
-        # }
-        
-        unique.ll.spatial <- unique.latlons
-        
-        proj <- proj4string(grid.cells) #gives the projection information
-        coordinates(unique.ll.spatial)=unique.ll.spatial[c(x.coord,y.coord)]
-        proj4string(unique.ll.spatial)=CRS(proj) # set it to lat/long
-        
-        over.df <- over(unique.ll.spatial, grid.cells) 
-        ull.with.gridID <- cbind(unique.latlons, over.df[,c("Id","All_GWNO")]) # I think this needs more work
-        
-        ull.with.gridID$ll <- paste(ull.with.gridID$lon,ull.with.gridID$lat)
-        ull.with.gridID[,x.coord] <- NULL
-        ull.with.gridID[,y.coord] <- NULL
-        
-        point.df$ll <- paste(point.df$lon,point.df$lat)
-        #out.data.old <- merge(point.df,ull.with.gridID,by="ll",all.x=T)
-        out.data <- merge(point.df,ull.with.gridID,by="ll")
-        out.data$ll <- NULL
         
         
         
-        names(out.data)[names(out.data) == 'Id']    <- 'GridID' 
-        if (throw.out.nulls){
-                out.data<-out.data[!is.na(out.data$GridID),]
-        }
-        out.data$dater <- as.Date(out.data[,time.field], date.string)
-        out.data$Year <- as.numeric(format(out.data$dater, format = "%Y"))
-        out.data$month <-  as.numeric(format(out.data$dater, format = "%m"))
-        out.data$dater<- NULL
-        #table.to.process$GC_Month <- paste(table.to.process$GridID,table.to.process$month, sep='-') #creates the year month field
-        out.data$yearMonth <- paste(out.data$Year, out.data$month, sep='') #creates the year month field
-        out.data$gymID <- paste(out.data$GridID, out.data$yearMonth, sep='-') #creates the gymID field  
-        return(out.data)
         
 }
-createStatsTable <- function(in.table, summary.variable, aggregate.variable){
-        print("Calculating Mean")
-        table.mean <- aggregate(in.table[[summary.variable]], list(in.table[[aggregate.variable]]), FUN=mean)
-        names(table.mean)[names(table.mean) == 'x'] <- paste0(summary.variable, "_mean")
+if (!file.exists("nasa_sm_monthlymean.csv")){
+        all.pre1980$Year <- NULL
+        all.pre1980$month <- NULL
+        all.pre1980$lon <- ifelse(all.pre1980$lon > 180, all.pre1980$lon - 360, all.pre1980$lon) 
         
-        print("Calculating Min")
-        table.min <- aggregate(in.table[[summary.variable]], list(in.table[[aggregate.variable]]), FUN=min)
-        names(table.min)[names(table.min) == 'x'] <- paste0(summary.variable, "_min")
         
-        print("Calculating Max")
-        table.max <- aggregate(in.table[[summary.variable]], list(in.table[[aggregate.variable]]), FUN=max)
-        names(table.max)[names(table.max) == 'x'] <- paste0(summary.variable, "_max")
         
-        print("Calculating count")
-        table.n <- aggregate(in.table[[summary.variable]], list(in.table[[aggregate.variable]]), FUN=function(x) sum( !is.na(x)))
-        names(table.n)[names(table.n) == 'x'] <- paste0(summary.variable, "_n")
+        all.pre1980.proc <- append.gridcell.values(point.df = all.pre1980,gridcells.spdf = grid.cells)
+        all.pre1980.proc <- all.pre1980.proc[!is.na(all.pre1980.proc$GridID),]
+        # all.prec1980.proc.ull <- unique(all.pre1980.proc[,c("lon","lat")])
+        # write.csv(all.prec1980.proc.ull,"nasa_sm_test2.csv")
+        all.pre1980.proc$GC_Month <- paste(all.pre1980.proc$GridID, str_pad(all.pre1980.proc$month, 2, pad = "0"), sep='-') #creates the year month field
+        all.pre1980.proc <- all.pre1980.proc[!is.na(all.pre1980.proc$soilw),]
         
-        summ.table <- merge(table.mean,table.min,by="Group.1")
-        summ.table <- merge(summ.table,table.max,by="Group.1")
-        summ.table <- merge(summ.table,table.n,by="Group.1")
-        names(summ.table)[names(summ.table) == 'Group.1'] <- aggregate.variable
-        
-        summ.table
-        
-}#end createStatsTable
+        monthy.mean <- aggregate(all.pre1980.proc$soilw, list(all.pre1980.proc$GC_Month), FUN=mean)
+        names(monthy.mean)[names(monthy.mean) == 'x'] <- 'prec_pre1980monthlyMean'
+        names(monthy.mean)[names(monthy.mean) == 'Group.1'] <- 'GC_Month'
+        write.csv(monthy.mean,"nasa_sm_monthlymean.csv",row.names=F)
+}else{
+        monthy.mean <- read.csv("nasa_sm_monthlymean.csv")
+}
+#processing the nasa soil moisture
+all.post1980.proc <- append.gridcell.values(point.df = all.post1980,gridcells.spdf = grid.cells)
 
-grid.cells <- readOGR("Shapefiles", layer = "Grid_Cells_2d30s")
+precip.table <- createStatsTable(in.table= precip.data.processed,summary.variable= "precip",aggregate.variable="gymID")
+#all.post1980.proc$GC_Month <- paste(all.post1980.proc$GridID, str_pad(all.post1980.proc$month, 2, pad = "0"), sep='-') #creates the year month field
+
+#working
+
+#end working
+
+#2 adding the gridcell to the csvs
+
 if (create.env.stats.tables){
         if (!file.exists("precip_table.csv")){
                 precip.data <- read.csv("precip.csv", stringsAsFactors = T)
@@ -483,10 +560,6 @@ conflict.types <- merge(conflict.types, conflics.gym.with.IDs, by="gymID", all.x
 
 remove(conflicts, conflicts.with.gridcell,conflics.gym.with.IDs)
 
-#OR
-# conflict.types <- read.csv("DataTables\\2d30s_Monthly_conflictClasses.csv")
-
-
 #Soil Data
 soil.variables <- read.dbf("DataTables\\all_Soilvariables.dbf")
 soil.variables <- soil.variables[,c("GridID","CLYPPT1_Me","SLTPPT1_Me","SNDPPT1_Me")]
@@ -510,3 +583,7 @@ capacity.raw <- capacity.raw[,c("cc_year", "capacity")]
 adaptation.vars <-merge(adaptation.vars,capacity.raw,by="cc_year",all=T)
 adaptation.vars <- adaptation.vars[!with(adaptation.vars,is.na(adaptation.vars$EXPOSURE)& is.na(adaptation.vars$VULNERABIL)& is.na(adaptation.vars$capacity)),]
 remove(iso.table2,capacity.raw)
+#Old Other Variables: Merged after duplication o
+demographic.data <- read.dta13("DataTables\\climate and conflict demographic data.dta")
+demographic.data$cc_year <- paste(demographic.data$ccode, demographic.data$year, sep='-')
+demographic.data <- demographic.data[,c("cc_year","degdppc","demortunder5","deruralpoppct")]
