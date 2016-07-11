@@ -127,7 +127,7 @@ open.netcdf.return.df<-function(file.name, outfield.name = "nothing", cut.year =
         return(netcdf.for.export)
 }
 
-append.gridcell.values<-function(point.df,gridcells.spdf,x.coord = "lon", y.coord = "lat", time.field = "time", throw.out.nulls = TRUE, date.string = "%Y/%m/%d"){
+append.gridcell.values<-function(point.df,gridcells.spdf,x.coord = "lon", y.coord = "lat", time.field = "time", throw.out.nulls = TRUE, date.string = "%Y/%m/%d", weirdness = FALSE){
         if(FALSE){
                 rm(list=ls(all=TRUE)) # clear memory
                 setwd("E:\\GISWork_2\\Regan_Conflict\\2016-06-15_TotalRebuild")
@@ -182,8 +182,12 @@ append.gridcell.values<-function(point.df,gridcells.spdf,x.coord = "lon", y.coor
         if (throw.out.nulls){
                 out.data<-out.data[!is.na(out.data$GridID),]
         }
-        out.data$dater <- as.Date(out.data[,time.field])
-        # out.data$dater <- as.Date(out.data[,time.field], date.string) #For some reason this stopped working with the date string
+        if (weirdness){
+                out.data$dater <- as.Date(out.data[,time.field])
+        }else{
+                out.data$dater <- as.Date(out.data[,time.field], date.string)        
+        }
+        
         
                 
         out.data$Year <- as.numeric(format(out.data$dater, format = "%Y"))
@@ -344,99 +348,119 @@ if (convert.necdfs){
 
 
 #1a). Using the different soil moisture measure (creating the pre-1980 mean)
-if (!file.exists("sm_nasa_1948.csv")){
-        sm.nasa.data.all <- open.netcdf.return.df(file.name = paste(netcdf.folder,"soilw.mon.mean.v2.nc",sep = ""), outfield.name = "soilw", cut.year = 1948, drop.na = F,write.netcdf = TRUE)
-        # write.csv(sm2.data,"sm_nasa_1948.csv",row.names = F)
-        sm.nasa.data.all$Year <- colsplit(sm.nasa.data.all$time,"-",c("year","month","day"))[,1]
-        sm.nasa.data.all$month <- colsplit(sm.nasa.data.all$time,"-",c("year","month","day"))[,2]        
-       
-        
-
-        
-}else{
-        if (!file.exists("sm_nasa_pre1980.csv")& !file.exists("sm_nasa_post1980.csv")){
-                sm.nasa.data.all <- read.csv("sm_nasa_1948.csv",stringsAsFactors = FALSE)        
-                all.pre1980 <- sm.nasa.data.all[which(sm.nasa.data.all$Year<1980),]
+if (!file.exists("EnvironmentalData\\SM_nasa_table.csv")){
+        if (!file.exists("EnvironmentalData\\sm_nasa_1948.csv")){
+                sm.nasa.data.all <- open.netcdf.return.df(file.name = paste(netcdf.folder,"soilw.mon.mean.v2.nc",sep = ""), outfield.name = "soilw", cut.year = 1948, drop.na = F,write.netcdf = TRUE)
+                # write.csv(sm2.data,"sm_nasa_1948.csv",row.names = F)
+                sm.nasa.data.all$Year <- colsplit(sm.nasa.data.all$time,"-",c("year","month","day"))[,1]
+                sm.nasa.data.all$month <- colsplit(sm.nasa.data.all$time,"-",c("year","month","day"))[,2]        
+               
                 
-                all.post1980 <- sm.nasa.data.all[which(sm.nasa.data.all$Year>=1980),]
+        
                 
-                write.large.csv(df=all.pre1980, out.name = "sm_nasa_pre1980.csv")
-                write.large.csv(df=all.post1980, out.name = "sm_nasa_post1980.csv")
         }else{
-                all.pre1980 <- read.csv("sm_nasa_pre1980.csv",stringsAsFactors = FALSE)
-                all.post1980 <-read.csv("sm_nasa_post1980.csv",stringsAsFactors = FALSE)
+                if (!file.exists("EnvironmentalData\\sm_nasa_pre1980.csv")& !file.exists("EnvironmentalData\\sm_nasa_post1980.csv")){
+                        sm.nasa.data.all <- read.csv("EnvironmentalData\\sm_nasa_1948.csv",stringsAsFactors = FALSE)        
+                        all.pre1980 <- sm.nasa.data.all[which(sm.nasa.data.all$Year<1980),]
+                        
+                        all.post1980 <- sm.nasa.data.all[which(sm.nasa.data.all$Year>=1980),]
+                        
+                        write.large.csv(df=all.pre1980, out.name = "EnvironmentalData\\sm_nasa_pre1980.csv")
+                        write.large.csv(df=all.post1980, out.name = "EnvironmentalData\\sm_nasa_post1980.csv")
+                }else{
+                        all.pre1980 <- read.csv("EnvironmentalData\\sm_nasa_pre1980.csv",stringsAsFactors = FALSE)
+                        all.post1980 <-read.csv("EnvironmentalData\\sm_nasa_post1980.csv",stringsAsFactors = FALSE)
+                }
+                
+                
+                
+                
         }
+        if (!file.exists("nasa_sm_monthlymean.csv")){
+                all.pre1980$Year <- NULL
+                all.pre1980$month <- NULL
+                all.pre1980$lon <- ifelse(all.pre1980$lon > 180, all.pre1980$lon - 360, all.pre1980$lon) 
+                
+                
+                
+                all.pre1980.proc <- append.gridcell.values(point.df = all.pre1980,gridcells.spdf = grid.cells, weirdness = TRUE)
+                all.pre1980.proc <- all.pre1980.proc[!is.na(all.pre1980.proc$GridID),]
+                # all.prec1980.proc.ull <- unique(all.pre1980.proc[,c("lon","lat")])
+                # write.csv(all.prec1980.proc.ull,"nasa_sm_test2.csv")
+                all.pre1980.proc$GC_Month <- paste(all.pre1980.proc$GridID, str_pad(all.pre1980.proc$month, 2, pad = "0"), sep='-') #creates the year month field
+                all.pre1980.proc <- all.pre1980.proc[!is.na(all.pre1980.proc$soilw),]
+                
+                monthy.mean <- aggregate(all.pre1980.proc$soilw, list(all.pre1980.proc$GC_Month), FUN=mean)
+                names(monthy.mean)[names(monthy.mean) == 'x'] <- 'prec_pre1980monthlyMean'
+                names(monthy.mean)[names(monthy.mean) == 'Group.1'] <- 'GC_Month'
+                write.csv(monthy.mean,"EnvironmentalData\\nasa_sm_monthlymean.csv",row.names=F)
+        }else{
+                monthy.mean <- read.csv("EnvironmentalData\\nasa_sm_monthlymean.csv")
+        }
+        #processing the nasa soil moisture
+        all.post1980.proc <- append.gridcell.values(point.df = all.post1980,gridcells.spdf = grid.cells)
+        
+        # write.large.csv(df = all.post1980.proc, out.name = "sm_nasa_post1980_proc.csv")
+        
+        # all.post1980.proc<-read.csv("EnvironmentalData\\sm_nasa_post1980_proc.csv",stringsAsFactors = F)
+        all.post1980.proc <- all.post1980.proc[!is.na(all.post1980.proc$soilw),]
+        #fixing the gymID field for months <10
+        all.post1980.proc$temp <- paste(all.post1980.proc$Year, str_pad(all.post1980.proc$month, 2, pad = "0"), sep='') #creates the year month field
+        all.post1980.proc$gymID <- paste(all.post1980.proc$GridID, all.post1980.proc$temp, sep='-') #creates the year month field
+        all.post1980.proc$temp <- NULL
+        
+        sm.nasa.table <- createStatsTable(in.table= all.post1980.proc,summary.variable= "soilw",aggregate.variable="gymID")
+        sm.nasa.table$GridID <- lapply(strsplit(as.character(sm.nasa.table$gymID), "-"), "[", 1)
+        sm.nasa.table$GC_Month <- paste(sm.nasa.table$GridID, str_sub(sm.nasa.table$gymID, -2, -1), sep='-') #creates the year month field
         
         
+        sm.nasa.table$gridId <- NULL
         
-        
-}
-if (!file.exists("nasa_sm_monthlymean.csv")){
-        all.pre1980$Year <- NULL
-        all.pre1980$month <- NULL
-        all.pre1980$lon <- ifelse(all.pre1980$lon > 180, all.pre1980$lon - 360, all.pre1980$lon) 
-        
-        
-        
-        all.pre1980.proc <- append.gridcell.values(point.df = all.pre1980,gridcells.spdf = grid.cells)
-        all.pre1980.proc <- all.pre1980.proc[!is.na(all.pre1980.proc$GridID),]
-        # all.prec1980.proc.ull <- unique(all.pre1980.proc[,c("lon","lat")])
-        # write.csv(all.prec1980.proc.ull,"nasa_sm_test2.csv")
-        all.pre1980.proc$GC_Month <- paste(all.pre1980.proc$GridID, str_pad(all.pre1980.proc$month, 2, pad = "0"), sep='-') #creates the year month field
-        all.pre1980.proc <- all.pre1980.proc[!is.na(all.pre1980.proc$soilw),]
-        
-        monthy.mean <- aggregate(all.pre1980.proc$soilw, list(all.pre1980.proc$GC_Month), FUN=mean)
-        names(monthy.mean)[names(monthy.mean) == 'x'] <- 'prec_pre1980monthlyMean'
-        names(monthy.mean)[names(monthy.mean) == 'Group.1'] <- 'GC_Month'
-        write.csv(monthy.mean,"nasa_sm_monthlymean.csv",row.names=F)
+        sm.with.baseline <-merge(sm.nasa.table, monthy.mean,by="GC_Month", all.x=T)
+        sm.with.baseline$sm_meanA <-  sm.with.baseline$soilw_mean - sm.with.baseline$prec_pre1980monthlyMean
+        sm.with.baseline$sm_minA <-  sm.with.baseline$soilw_min - sm.with.baseline$prec_pre1980monthlyMean
+        sm.with.baseline$sm_maxA <- sm.with.baseline$soilw_max - sm.with.baseline$prec_pre1980monthlyMean
+        sm.with.baseline <- sm.with.baseline[,c("gymID","sm_meanA", "sm_minA","sm_maxA","soilw_n" )]
+        names(sm.with.baseline)<-c(c("gymID","smA_mean", "smA_min","smA_max","smA_n" ))
+        write.csv(sm.with.baseline,"EnvironmentalData\\SM_nasa_table.csv", row.names = F)
 }else{
-        monthy.mean <- read.csv("nasa_sm_monthlymean.csv")
+        sm.with.baseline<- read.csv("EnvironmentalData\\SM_nasa_table.csv", stringsAsFactors = FALSE)
 }
-#processing the nasa soil moisture
-all.post1980.proc <- append.gridcell.values(point.df = all.post1980,gridcells.spdf = grid.cells)
-
-precip.table <- createStatsTable(in.table= precip.data.processed,summary.variable= "precip",aggregate.variable="gymID")
-#all.post1980.proc$GC_Month <- paste(all.post1980.proc$GridID, str_pad(all.post1980.proc$month, 2, pad = "0"), sep='-') #creates the year month field
-
-#working
-
-#end working
-
 #2 adding the gridcell to the csvs
 
 if (create.env.stats.tables){
-        if (!file.exists("precip_table.csv")){
+        if (!file.exists("EnvironmentalData\\precip_table.csv")){
                 precip.data <- read.csv("precip.csv", stringsAsFactors = T)
                 
                 precip.data.processed <- append.gridcell.values(point.df = precip.data,gridcells.spdf = grid.cells)
                 precip.table <- createStatsTable(in.table= precip.data.processed,summary.variable= "precip",aggregate.variable="gymID")
-                write.csv(precip.table,"precip_table.csv", row.names = F)
+                write.csv(precip.table,"EnvironmentalData\\precip_table.csv", row.names = F)
                 
         } else{
-                precip.table <- read.csv("precip_table.csv")
+                precip.table <- read.csv("EnvironmentalData\\precip_table.csv")
         }
         
-        if (!file.exists("temp_table.csv")){
-                temp.data <- read.csv("temp.csv", stringsAsFactors = T)
+        if (!file.exists("EnvironmentalData\\temp_table.csv")){
+                temp.data <- read.csv("EnvironmentalData\\temp.csv", stringsAsFactors = T)
                 
                 temp.data.processed <- append.gridcell.values(point.df = temp.data,gridcells.spdf = grid.cells)
                 temp.table <- createStatsTable(in.table= temp.data.processed,summary.variable= "temp",aggregate.variable="gymID")
-                write.csv(temp.table,"temp_table.csv", row.names = F)
+                write.csv(temp.table,"EnvironmentalData\\temp_table.csv", row.names = F)
         }else{
-                temp.table <- read.csv("temp_table.csv")
+                temp.table <- read.csv("EnvironmentalData\\temp_table.csv")
         }
         
-        if (!file.exists("pdsi_table.csv")){
-                pdsi.data <- read.csv("pdsi.csv", stringsAsFactors = T)
+        if (!file.exists("EnvironmentalData\\pdsi_table.csv")){
+                pdsi.data <- read.csv("EnvironmentalData\\pdsi.csv", stringsAsFactors = T)
                 
                 pdsi.data.processed <- append.gridcell.values(point.df = pdsi.data,gridcells.spdf = grid.cells)
                 pdsi.table <- createStatsTable(in.table= pdsi.data.processed,summary.variable= "pdsi",aggregate.variable="gymID")
-                write.csv(pdsi.table,"pdsi_table.csv", row.names = F)
+                write.csv(pdsi.table,"EnvironmentalData\\pdsi_table.csv", row.names = F)
         }else{
-                pdsi.table <- read.csv("pdsi_table.csv")
+                pdsi.table <- read.csv("EnvironmentalData\\pdsi_table.csv")
         }
-        if (!file.exists("sm_ECI_table.csv")){
-                sm.data <- read.csv("sm_ECI.csv", stringsAsFactors = T)
+        if (!file.exists("EnvironmentalData\\sm_ECI_table.csv")){
+                sm.data <- read.csv("EnvironmentalData\\sm_ECI.csv", stringsAsFactors = T)
                 
                 sm.data.processed <- append.gridcell.values(point.df = sm.data,gridcells.spdf = grid.cells)
                 
@@ -455,13 +479,13 @@ if (create.env.stats.tables){
                         }
                 }
                 remove(i, higher, first)
-                sm.data.processed <- read.csv("sm_ECI_procc.csv", stringsAsFactors = T)
+                sm.data.processed <- read.csv("EnvironmentalData\\sm_ECI_procc.csv", stringsAsFactors = T)
                 
                 
                 sm.table <- createStatsTable(in.table= sm.data.processed,summary.variable= "sm",aggregate.variable="gymID")
-                write.csv(sm.table,"sm_ECI_table.csv", row.names = F)
+                write.csv(sm.table,"EnvironmentalData\\sm_ECI_table.csv", row.names = F)
         }else{
-                sm.table <- read.csv("sm_ECI_table.csv")
+                sm.table <- read.csv("EnvironmentalData\\sm_ECI_table.csv")
         } 
 }
 
@@ -479,7 +503,7 @@ if (aggrigate.environmental.data){
         
         master.table <- merge(precip.table,pdsi.table,by="gymID", all=T)
         master.table <- merge(master.table,temp.table,by="gymID", all=T)
-        master.table <- merge(master.table,sm.table,by="gymID", all=T)
+        master.table <- merge(master.table,sm.with.baseline,by="gymID", all=T)
         
         master.table$GridID <- colsplit(master.table$gymID,"-",c("GridID","YearMonth"))[,1]
         master.table <- merge(master.table,table.gwno,by="GridID",all.x=T)
@@ -499,16 +523,11 @@ if (aggrigate.environmental.data){
         write.csv(master.table02, "EnvironmentalVariables_NoDuplication.csv", row.names = FALSE)
         env.nodup <- master.table02
         
-        #Splitting off into the 
-        y<-strsplit(as.character( master.table02$All_GWNO)  , " ", fixed=TRUE)
-        final.data <- data.frame(GWNO_sing= unlist(y), master.table02[ rep(1:nrow(master.table02), sapply(y, length)) , -1 ] )
-        end.withdup <- final.data
-        
-        write.csv(final.data, "EnvironmentalVariables_WithDuplication.csv", row.names = FALSE)
+       
         
 }else{
         env.nodup <- read.csv("EnvironmentalVariables_NoDuplication.csv", stringsAsFactors =  FALSE)
-        end.withdup <-read.csv("EnvironmentalVariables_WithDuplication.csv", stringsAsFactors =  FALSE)
+        # env.withdup <-read.csv("EnvironmentalVariables_WithDuplication.csv", stringsAsFactors =  FALSE)
         
 }
 
@@ -518,7 +537,7 @@ grid.cell.details <- grid.cells@data
 single.country.grids <- grid.cell.details[ which(str_length(grid.cell.details$All_GWNO)==3),]
 single.country.grids$single_filer <- 1
 single.country.grids <- single.country.grids[,c(1,5)]
-names(single.country.grids)[names(single.country.grids) == 'Id']    <- 'gridID'
+names(single.country.grids)[names(single.country.grids) == 'Id']    <- 'GridID'
 rownames(single.country.grids) <- c()
 # merged.with.filter <- merge(all.data.old,single.country.grids,by="gridID", all.x = T)
 # merged.with.filter$single_filer[is.na(merged.with.filter$single_filer)] <- 0
@@ -535,12 +554,22 @@ polity4 <- polity4[ , c(3:7)]
 rownames(polity4) <- c()
 
 #Protest Data: the actually processing can be found in the file Protest_in_R.R
-protest <- read.csv("DataTables\\Protest_Data_By_gym.csv")
+protest <- read.csv("DataTables\\Protest_Data_By_gym.csv",stringsAsFactors = FALSE)
+protest$X <- NULL
+protest <- protest[ which(protest$gymID != "-201211"), ]
+protest <- protest[ which(substr(protest$gymID,1,2) != "NA"), ]
+
 
 #Conflict Data
 conflicts <- read.csv("DataTables\\georeferenced conflict data.csv",stringsAsFactors = F)
 conflicts <- conflicts[,c("gwno","lat","lon","date_start","type_of_violence")]
 conflicts.with.gridcell <- append.gridcell.values(point.df = conflicts, gridcells.spdf = grid.cells, time.field = "date_start", date.string =  "%m/%d/%Y")
+#Fixing erronous gymID
+conflicts.with.gridcell$temp <- paste(conflicts.with.gridcell$Year, str_pad(conflicts.with.gridcell$month, 2, pad = "0"), sep='') #creates the year month field
+conflicts.with.gridcell$gymID <- paste(conflicts.with.gridcell$GridID, conflicts.with.gridcell$temp, sep='-') #creates the year month field
+conflicts.with.gridcell$temp <- NULL
+
+
 conflict.types <- data.frame ( table ( conflicts.with.gridcell$gymID, conflicts.with.gridcell$type_of_violence ) [,] )
 names(conflict.types) <- c("cnfts_1","cnfts_2","cnfts_3")
 conflict.types$gymID <- row.names(conflict.types)
@@ -584,6 +613,71 @@ adaptation.vars <-merge(adaptation.vars,capacity.raw,by="cc_year",all=T)
 adaptation.vars <- adaptation.vars[!with(adaptation.vars,is.na(adaptation.vars$EXPOSURE)& is.na(adaptation.vars$VULNERABIL)& is.na(adaptation.vars$capacity)),]
 remove(iso.table2,capacity.raw)
 #Old Other Variables: Merged after duplication o
-demographic.data <- read.dta13("DataTables\\climate and conflict demographic data.dta")
+demographic.data <- read.csv("DataTables\\climateAndConflictDemographicData.csv", stringsAsFactors = F)
+demographic.data <- unique(demographic.data)
+# write.csv(demographic.data, "climateAndConflictDemographicData.csv", row.names = F)
 demographic.data$cc_year <- paste(demographic.data$ccode, demographic.data$year, sep='-')
-demographic.data <- demographic.data[,c("cc_year","degdppc","demortunder5","deruralpoppct")]
+
+demographic.data <- demographic.data[which(demographic.data$year>=1980),]
+
+demographic.data <- demographic.data[,c("ccode","cc_year","degdppc","demortunder5","deruralpoppct")]
+
+
+#MERGING!
+remove(grid.cell.details, sm.with.baseline)
+#BaseData: ENV.NoDup
+final.nodup <- env.nodup
+#single.country.grids: GridID
+
+final.nodup <-merge(final.nodup,single.country.grids,by="GridID", all = T)
+final.nodup$single_filer <- ifelse(is.na(final.nodup$single_filer), 0, final.nodup$single_filer)
+#soil.variables: GridID
+final.nodup <-merge(final.nodup,soil.variables,by="GridID", all = T)
+final.nodup<- final.nodup[which(!is.na(final.nodup$gymID)),] #Tossing a few places that have soil measurements but nothing else
+
+#Conflict Types: gymID
+final.nodup <-merge(final.nodup,conflict.types,by="gymID", all = T)
+
+
+#protest: gymID:
+final.nodup <-merge(final.nodup,protest,by="gymID", all = T)
+
+final.nodup<- final.nodup[which(!is.na(final.nodup$GridID)),] #Tossing a few places that have conflicts or protests but no environmental data
+
+#Dedup
+y<-strsplit(as.character( final.nodup$All_GWNO)  , " ", fixed=TRUE)
+final.duped <- data.frame(GWNO_sing= unlist(y), final.nodup[ rep(1:nrow(final.nodup), sapply(y, length)) ,  ] )
+#build year field for cc_year
+final.duped$ym <- colsplit(final.duped$gymID,"-",c("gridID","ym"))[,2]
+final.duped$Year <- substr(final.duped$ym,1,4)
+#cc_year
+final.duped$cc_year <- paste(final.duped$GWNO_sing,final.duped$Year,sep="-")
+
+# retry <- unique(final.duped[,2:25])
+
+#polity4: ccYear: Needs to happen after duplication
+final.duped <-merge(final.duped,polity4,by="cc_year", all.x = T) #all.x throws out non African countries
+
+#demographic.data: ccYear: Needs to happen after duplication
+final.duped$GWNO_sing <- as.character(final.duped$GWNO_sing)
+#testomg
+# list02 <- unique(final.duped$GWNO_sing)
+# demographic.data2 <- demographic.data[which(demographic.data$ccode %in% list02),]
+# 
+# list.of.ccyears <- unique(final.duped$cc_year)
+# only.relevent.demodata <- demographic.data[which(demographic.data$cc_year %in% list.of.ccyears),]
+# oop <- merge (adaptation.vars, demographic.data2, by="cc_year", all = T)
+# final.duped <-merge(final.duped,oop,by="cc_year", all.x = T) #all.x throws out non African countries
+# library(data.table)
+# fd <- data.table(final.duped, key = "cc_year")
+# dd <- data.table(demographic.data, key = "cc_year")
+# test.df <- dd[fd]
+
+final.duped <-merge(final.duped,demographic.data,by="cc_year", all.x = T) #all.x throws out non African countries
+        #this takes for-damn-ever????
+#Adaptation Variables using ccYEar: Needs to happen after duplication
+
+final.duped <-merge(final.duped,adaptation.vars,by="cc_year", all.x = T) #all.x throws out non African countries
+
+write.csv(final.duped,"2016-07-09_TotalRebuild.csv", row.names = FALSE)
+write.dta(final.duped, "2016-07-09_TotalRebuild.dta")
