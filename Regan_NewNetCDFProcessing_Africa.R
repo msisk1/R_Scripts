@@ -536,7 +536,7 @@ grid.cell.details <- grid.cells@data
 #grid.cell.details$sing_filter <- str_length(grid.cell.details$All_GWNO)
 single.country.grids <- grid.cell.details[ which(str_length(grid.cell.details$All_GWNO)==3),]
 single.country.grids$single_filer <- 1
-single.country.grids <- single.country.grids[,c(1,5)]
+single.country.grids <- single.country.grids[,c(1:3,5)]
 names(single.country.grids)[names(single.country.grids) == 'Id']    <- 'GridID'
 rownames(single.country.grids) <- c()
 # merged.with.filter <- merge(all.data.old,single.country.grids,by="gridID", all.x = T)
@@ -678,6 +678,11 @@ final.duped <-merge(final.duped,demographic.data,by="cc_year", all.x = T) #all.x
 #Adaptation Variables using ccYEar: Needs to happen after duplication
 
 final.duped <-merge(final.duped,adaptation.vars,by="cc_year", all.x = T) #all.x throws out non African countries
-
+final.duped$cnfts_t[which(is.na(final.duped$cnfts_t))]<-0
+final.duped$cnfts_1[which(is.na(final.duped$cnfts_1))]<-0
+final.duped$cnfts_2[which(is.na(final.duped$cnfts_2))]<-0
+final.duped$cnfts_3[which(is.na(final.duped$cnfts_3))]<-0
+final.duped$month <- final.duped$ym - as.integer(final.duped$Year)*100 
+final.duped$ym <- NULL
 write.csv(final.duped,"2016-07-09_TotalRebuild.csv", row.names = FALSE)
 write.dta(final.duped, "2016-07-09_TotalRebuild.dta")
