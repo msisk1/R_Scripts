@@ -7,7 +7,7 @@ lapply(packages, require, character.only=T) # load the packages, if they don't l
 setwd("E:\\GISWork_2\\Regan_Conflict\\2016-06-15_TotalRebuild")
 
 
-
+#To add 7/13/2016: Sensitivity (2014), aridity, sm (non anomaly)
 
 #Functions
 open.netcdf.return.df<-function(file.name, outfield.name = "nothing", cut.year = 1980, drop.na = FALSE,lat.range=c(-40,55),lon.range = c(-30,70),write.netcdf = FALSE, funky.override = FALSE){
@@ -376,7 +376,7 @@ if (!file.exists("EnvironmentalData\\SM_nasa_table.csv")){
                 
                 
         }
-        if (!file.exists("nasa_sm_monthlymean.csv")){
+        if (!file.exists("EnvironmentalData\\nasa_sm_monthlymean.csv")){
                 all.pre1980$Year <- NULL
                 all.pre1980$month <- NULL
                 all.pre1980$lon <- ifelse(all.pre1980$lon > 180, all.pre1980$lon - 360, all.pre1980$lon) 
@@ -420,8 +420,8 @@ if (!file.exists("EnvironmentalData\\SM_nasa_table.csv")){
         sm.with.baseline$sm_meanA <-  sm.with.baseline$soilw_mean - sm.with.baseline$prec_pre1980monthlyMean
         sm.with.baseline$sm_minA <-  sm.with.baseline$soilw_min - sm.with.baseline$prec_pre1980monthlyMean
         sm.with.baseline$sm_maxA <- sm.with.baseline$soilw_max - sm.with.baseline$prec_pre1980monthlyMean
-        sm.with.baseline <- sm.with.baseline[,c("gymID","sm_meanA", "sm_minA","sm_maxA","soilw_n" )]
-        names(sm.with.baseline)<-c(c("gymID","smA_mean", "smA_min","smA_max","smA_n" ))
+        sm.with.baseline <- sm.with.baseline[,c("gymID", "soilw_mean","soilw_min","soilw_max","sm_meanA", "sm_minA","sm_maxA","soilw_n" )]
+        names(sm.with.baseline)<-               c("gymID","sm_mean","sm_min","sm_max","smA_mean", "smA_min","smA_max","sm_n" )
         write.csv(sm.with.baseline,"EnvironmentalData\\SM_nasa_table.csv", row.names = F)
 }else{
         sm.with.baseline<- read.csv("EnvironmentalData\\SM_nasa_table.csv", stringsAsFactors = FALSE)
@@ -520,13 +520,13 @@ if (aggrigate.environmental.data){
         master.table02$pdsi_n <- NULL
         names(master.table02)[names(master.table02) == 'pdsi_mean']   <- "pdsi"
         names(master.table02)[names(master.table02) == 'precip_mean']   <- "precip"
-        write.csv(master.table02, "EnvironmentalVariables_NoDuplication.csv", row.names = FALSE)
+        write.csv(master.table02, "EnvironmentalData\\EnvironmentalVariables_NoDuplication.csv", row.names = FALSE)
         env.nodup <- master.table02
         
        
         
 }else{
-        env.nodup <- read.csv("EnvironmentalVariables_NoDuplication.csv", stringsAsFactors =  FALSE)
+        env.nodup <- read.csv("EnvironmentalData\\EnvironmentalVariables_NoDuplication.csv", stringsAsFactors =  FALSE)
         # env.withdup <-read.csv("EnvironmentalVariables_WithDuplication.csv", stringsAsFactors =  FALSE)
         
 }
@@ -604,10 +604,17 @@ adaptation.vars <- adaptation.vars[,c("cc_year","EXPOSURE","VULNERABIL")]
 adaptation.vars[adaptation.vars == 0] <- NA
 
 capacity.raw <- read.csv("DataTables\\capacity_processed.csv")
+capacity.raw$merg <- paste(capacity.raw$ISO3,capacity.raw$Year)
+sensitvity.raw <- read.csv("DataTables\\sensitivity_processed.csv")
+sensitvity.raw$merg <- paste(sensitvity.raw$ISO3,sensitvity.raw$Year)
+sensitvity.raw$ISO3 <- NULL
+sensitvity.raw$Year <- NULL
+capacity.raw <- merge(capacity.raw, sensitvity.raw, by="merg")
+
 capacity.raw <- merge(capacity.raw,iso.table2, by= "ISO3")
 capacity.raw$cc_year <- paste(capacity.raw$CCODE, capacity.raw$Year, sep='-') #creates the GridYear field
 
-capacity.raw <- capacity.raw[,c("cc_year", "capacity")]
+capacity.raw <- capacity.raw[,c("cc_year", "capacity","sensitivity")]
 
 adaptation.vars <-merge(adaptation.vars,capacity.raw,by="cc_year",all=T)
 adaptation.vars <- adaptation.vars[!with(adaptation.vars,is.na(adaptation.vars$EXPOSURE)& is.na(adaptation.vars$VULNERABIL)& is.na(adaptation.vars$capacity)),]
@@ -623,17 +630,22 @@ demographic.data <- demographic.data[which(demographic.data$year>=1980),]
 demographic.data <- demographic.data[,c("ccode","cc_year","degdppc","demortunder5","deruralpoppct")]
 
 
+#aridity zones
+aridity.zones <- read.csv("DataTables\\AridityZones.csv", stringsAsFactors = F)
+
 #MERGING!
 remove(grid.cell.details, sm.with.baseline)
 #BaseData: ENV.NoDup
 final.nodup <- env.nodup
 #single.country.grids: GridID
-
 final.nodup <-merge(final.nodup,single.country.grids,by="GridID", all = T)
 final.nodup$single_filer <- ifelse(is.na(final.nodup$single_filer), 0, final.nodup$single_filer)
 #soil.variables: GridID
 final.nodup <-merge(final.nodup,soil.variables,by="GridID", all = T)
 final.nodup<- final.nodup[which(!is.na(final.nodup$gymID)),] #Tossing a few places that have soil measurements but nothing else
+
+#Aridity Zones: GridID
+final.nodup <-merge(final.nodup,aridity.zones,by="GridID", all = T)
 
 #Conflict Types: gymID
 final.nodup <-merge(final.nodup,conflict.types,by="gymID", all = T)
@@ -660,21 +672,9 @@ final.duped <-merge(final.duped,polity4,by="cc_year", all.x = T) #all.x throws o
 
 #demographic.data: ccYear: Needs to happen after duplication
 final.duped$GWNO_sing <- as.character(final.duped$GWNO_sing)
-#testomg
-# list02 <- unique(final.duped$GWNO_sing)
-# demographic.data2 <- demographic.data[which(demographic.data$ccode %in% list02),]
-# 
-# list.of.ccyears <- unique(final.duped$cc_year)
-# only.relevent.demodata <- demographic.data[which(demographic.data$cc_year %in% list.of.ccyears),]
-# oop <- merge (adaptation.vars, demographic.data2, by="cc_year", all = T)
-# final.duped <-merge(final.duped,oop,by="cc_year", all.x = T) #all.x throws out non African countries
-# library(data.table)
-# fd <- data.table(final.duped, key = "cc_year")
-# dd <- data.table(demographic.data, key = "cc_year")
-# test.df <- dd[fd]
+
 
 final.duped <-merge(final.duped,demographic.data,by="cc_year", all.x = T) #all.x throws out non African countries
-        #this takes for-damn-ever????
 #Adaptation Variables using ccYEar: Needs to happen after duplication
 
 final.duped <-merge(final.duped,adaptation.vars,by="cc_year", all.x = T) #all.x throws out non African countries
