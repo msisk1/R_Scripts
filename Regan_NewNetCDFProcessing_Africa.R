@@ -1,5 +1,5 @@
 rm(list=ls(all=TRUE)) # clear memory
-
+#test
 packages<- c("ncdf4","chron","rgdal","sp","reshape2","cmsaf","stringr", "foreign","readstata13") # list the packages that you'll need
 lapply(packages, require, character.only=T) # load the packages, if they don't load you might need to install them first
 
