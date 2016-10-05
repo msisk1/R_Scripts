@@ -145,7 +145,7 @@ append.gridcell.values<-function(point.df,gridcells.spdf,x.coord = "lon", y.coor
                 x.coord = "lon"
                 y.coord = "lat"
                 
-                point.df = all.pre1980
+                point.df = precip2.post1980
                 gridcells.spdf = grid.cells
                 time.field = "time"
                 date.string = "%Y/%m/%d"
@@ -189,7 +189,7 @@ append.gridcell.values<-function(point.df,gridcells.spdf,x.coord = "lon", y.coor
         }
         
         
-                
+        
         out.data$Year <- as.numeric(format(out.data$dater, format = "%Y"))
         out.data$month <-  as.numeric(format(out.data$dater, format = "%m"))
         out.data$dater<- NULL
@@ -318,32 +318,19 @@ if (process.ECI.soilMoisture){
 if (convert.necdfs){
         
         precip.data <- open.netcdf.return.df(file.name = paste(netcdf.folder,"precip.mon.mean.nc",sep = ""), outfield.name = "precip", cut.year = 1980, drop.na = F,write.netcdf = TRUE)
-        write.csv(precip.data,"precip.csv",row.names = F)
+        write.csv(precip.data,"EnvironmentalData\\precip.csv",row.names = F)
         
         temp.data <- open.netcdf.return.df(file.name = paste(netcdf.folder,"air.2x2.1200.mon.anom.land.nc",sep = ""), outfield.name = "temp", cut.year = 1980, drop.na = T,write.netcdf = TRUE)
-        write.csv(temp.data,"temp.csv",row.names = F)
+        write.csv(temp.data,"EnvironmentalData\\temp.csv",row.names = F)
         
         pdsi.data <- open.netcdf.return.df(file.name = paste(netcdf.folder,"pdsi.mon.mean.selfcalibrated.nc",sep = ""), outfield.name = "pdsi", cut.year = 1980, drop.na = T,write.netcdf = TRUE)
-        write.csv(pdsi.data,"pdsi.csv",row.names = F)
+        write.csv(pdsi.data,"EnvironmentalData\\pdsi.csv",row.names = F)
         
         
         sm2.data <- open.netcdf.return.df(file.name = paste(netcdf.folder,"ESA_sm2_all_monthly.nc",sep = ""), outfield.name = "sm", cut.year = 1980, drop.na = T,write.netcdf = TRUE, funky.override = TRUE)
         #write.csv(sm2.data,"sm.csv",row.names = F)
-        first <- T
-        for (i in  seq(1, nrow(sm2.data),1000000)){
-                higher <- (i + 999999)
-                if (higher > nrow(sm2.data)){
-                        higher <- nrow(sm2.data)
-                }
-                print(paste(i,as.integer(higher)))
-                if (first){
-                        write.table(sm2.data[i:higher,],"sm_ECI.csv",row.names = F, append = F,sep=",")
-                        first <- F
-                }else{
-                        write.table(sm2.data[i:higher,],"sm_ECI.csv",row.names = F, col.names = F, append = T,sep=",")
-                }
-        }
-        remove(i, higher, first)
+        write.large.csv(df=sm2.data, out.name = "EnvironmentalData\\sm_ECI.csv")
+        
 }
 
 
@@ -354,9 +341,9 @@ if (!file.exists("EnvironmentalData\\SM_nasa_table.csv")){
                 # write.csv(sm2.data,"sm_nasa_1948.csv",row.names = F)
                 sm.nasa.data.all$Year <- colsplit(sm.nasa.data.all$time,"-",c("year","month","day"))[,1]
                 sm.nasa.data.all$month <- colsplit(sm.nasa.data.all$time,"-",c("year","month","day"))[,2]        
-               
                 
-        
+                
+                
                 
         }else{
                 if (!file.exists("EnvironmentalData\\sm_nasa_pre1980.csv")& !file.exists("EnvironmentalData\\sm_nasa_post1980.csv")){
@@ -425,6 +412,100 @@ if (!file.exists("EnvironmentalData\\SM_nasa_table.csv")){
         write.csv(sm.with.baseline,"EnvironmentalData\\SM_nasa_table.csv", row.names = F)
 }else{
         sm.with.baseline<- read.csv("EnvironmentalData\\SM_nasa_table.csv", stringsAsFactors = FALSE)
+}
+
+#1b). Creating the precipitation anolaly measurement
+#data: ftp://ftp.cdc.noaa.gov/Datasets/udel.airt.precip/precip.mon.total.v401.nc
+#http://www.esrl.noaa.gov/psd/data/gridded/data.UDel_AirT_Precip.html
+if (!file.exists("EnvironmentalData\\precip2_anomaly_table.csv")){
+        if (!file.exists("EnvironmentalData\\precip2_dev_1948.csv")){
+                precip2.data.all <-open.netcdf.return.df(file.name = paste(netcdf.folder,"precip.mon.total.v401.nc",sep = ""), outfield.name = "precip", cut.year = 1948, drop.na = F,write.netcdf = TRUE)
+                
+                #write.csv(precip2.data.all,"EnvironmentalData\\precip2_dev_1948.csv",row.names = F)
+                
+                precip2.data.all$Year <- colsplit(precip2.data.all$time,"-",c("year","month","day"))[,1]
+                precip2.data.all$month <- colsplit(precip2.data.all$time,"-",c("year","month","day"))[,2]        
+                write.large.csv(df=precip2.data.all, out.name = "EnvironmentalData\\precip2_dev_1948.csv")
+                
+                
+                
+                
+        }else{
+                if (!file.exists("EnvironmentalData\\precip2_dev_pre1980.csv")& !file.exists("EnvironmentalData\\precip2_dev_post1980.csv")){
+                        precip2.data.all <- read.csv("EnvironmentalData\\precip2_dev_1948.csv",stringsAsFactors = FALSE)        
+                        precip2.pre1980 <- precip2.data.all[which(precip2.data.all$Year<1980),]
+                        
+                        precip2.post1980 <- precip2.data.all[which(precip2.data.all$Year>=1980),]
+                        
+                        write.large.csv(df=precip2.pre1980, out.name = "EnvironmentalData\\precip2_dev_pre1980.csv")
+                        #precip2.post1980$month <- colsplit(precip2.post1980$time,"-",c("year","month","day"))[,2]        
+                        write.large.csv(df=precip2.post1980, out.name = "EnvironmentalData\\precip2_dev_post1980.csv")
+                }else{
+                        precip2.pre1980 <- read.csv("EnvironmentalData\\precip2_dev_pre1980.csv",stringsAsFactors = FALSE)
+                        precip2.post1980 <-read.csv("EnvironmentalData\\precip2_dev_post1980.csv",stringsAsFactors = FALSE)
+                }
+                
+                
+                
+                
+        }
+        if (!file.exists("EnvironmentalData\\precip2_monthlymean.csv")){
+                precip2.pre1980$Year <- NULL
+                precip2.pre1980$month <- NULL
+                precip2.pre1980$lon <- ifelse(precip2.pre1980$lon > 180, precip2.pre1980$lon - 360, precip2.pre1980$lon) 
+                
+                
+                
+                precip2.pre1980.proc <- append.gridcell.values(point.df = precip2.pre1980,gridcells.spdf = grid.cells, weirdness = TRUE)
+                precip2.pre1980.proc <- precip2.pre1980.proc[!is.na(precip2.pre1980.proc$GridID),]
+                # all.prec1980.proc.ull <- unique(all.pre1980.proc[,c("lon","lat")])
+                # write.csv(precip2.pre1980.proc,"prec_test2.csv")
+                precip2.pre1980.proc$GC_Month <- paste(precip2.pre1980.proc$GridID, str_pad(precip2.pre1980.proc$month, 2, pad = "0"), sep='-') #creates the year month field
+                precip2.pre1980.proc <- precip2.pre1980.proc[!is.na(precip2.pre1980.proc$precip),]
+                
+                monthy.mean.precip2 <- aggregate(precip2.pre1980.proc$precip, list(precip2.pre1980.proc$GC_Month), FUN=mean)
+                names(monthy.mean.precip2)[names(monthy.mean.precip2) == 'x'] <- 'prec_pre1980monthlyMean'
+                names(monthy.mean.precip2)[names(monthy.mean.precip2) == 'Group.1'] <- 'GC_Month'
+                write.csv(monthy.mean.precip2,"EnvironmentalData\\precip2_monthlymean.csv",row.names=F)
+        }else{
+                prec.monthy.mean <- read.csv("EnvironmentalData\\precip2_monthlymean.csv")
+                precip2.pre1980 <- NULL
+        }
+        
+        #HERE LEFT OFF
+        precip2.post1980$month <- NULL
+        precip2.post1980$Year <- NULL
+        
+        precip2.post1980.proc <- append.gridcell.values(point.df = precip2.post1980,gridcells.spdf = grid.cells, weirdness = T)
+        
+        # write.large.csv(df = precip2.post1980.proc, out.name = "precip2_post1980_proc.csv")
+        
+        # all.post1980.proc<-read.csv("EnvironmentalData\\sm_nasa_post1980_proc.csv",stringsAsFactors = F)
+        
+        precip2.post1980.proc <- precip2.post1980.proc[!is.na(precip2.post1980.proc$precip),]
+        # precip2.post1980.proc$month <- colsplit(precip2.post1980.proc$time,"-",c("year","month","day"))[,2]        
+        
+        #fixing the gymID field for months <10
+        precip2.post1980.proc$temp <- paste(precip2.post1980.proc$Year, str_pad(precip2.post1980.proc$month, 2, pad = "0"), sep='') #creates the year month field
+        precip2.post1980.proc$gymID <- paste(precip2.post1980.proc$GridID, precip2.post1980.proc$temp, sep='-') #creates the year month field
+        precip2.post1980.proc$temp <- NULL
+        
+        prec.anom.table <- createStatsTable(in.table= precip2.post1980.proc,summary.variable= "precip",aggregate.variable="gymID")
+        prec.anom.table$GridID <- lapply(strsplit(as.character(prec.anom.table$gymID), "-"), "[", 1)
+        prec.anom.table$GC_Month <- paste(prec.anom.table$GridID, str_sub(prec.anom.table$gymID, -2, -1), sep='-') #creates the year month field
+        
+        
+        prec.anom.table$GridID <- NULL
+        
+        prec2.with.baseline <-merge(prec.anom.table, prec.monthy.mean,by="GC_Month", all.x=T)
+        prec2.with.baseline$prec2_meanA <-  prec2.with.baseline$precip_mean - prec2.with.baseline$prec_pre1980monthlyMean
+        prec2.with.baseline$prec2_minA <-  prec2.with.baseline$precip_min - prec2.with.baseline$prec_pre1980monthlyMean
+        prec2.with.baseline$prec2_maxA <- prec2.with.baseline$precip_max - prec2.with.baseline$prec_pre1980monthlyMean
+        prec2.with.baseline <- prec2.with.baseline[,c("gymID", "precip_mean","precip_min","precip_max","prec2_meanA", "prec2_minA","prec2_maxA","precip_n" )]
+        names(prec2.with.baseline)<-               c("gymID", "prec2_mean","prec2_min","prec2_max","prec2_meanA", "prec2_minA","prec2_maxA","prec2_n" )
+        write.csv(prec2.with.baseline,"EnvironmentalData\\precip2_anomaly_table.csv", row.names = F)
+}else{
+        prec2.with.baseline<- read.csv("EnvironmentalData\\precip2_anomaly_table.csv", stringsAsFactors = FALSE)
 }
 #2 adding the gridcell to the csvs
 
@@ -504,6 +585,7 @@ if (aggrigate.environmental.data){
         master.table <- merge(precip.table,pdsi.table,by="gymID", all=T)
         master.table <- merge(master.table,temp.table,by="gymID", all=T)
         master.table <- merge(master.table,sm.with.baseline,by="gymID", all=T)
+        master.table <- merge(master.table,prec2.with.baseline, by="gymID", all=T)
         
         master.table$GridID <- colsplit(master.table$gymID,"-",c("GridID","YearMonth"))[,1]
         master.table <- merge(master.table,table.gwno,by="GridID",all.x=T)
@@ -523,7 +605,7 @@ if (aggrigate.environmental.data){
         write.csv(master.table02, "EnvironmentalData\\EnvironmentalVariables_NoDuplication.csv", row.names = FALSE)
         env.nodup <- master.table02
         
-       
+        
         
 }else{
         env.nodup <- read.csv("EnvironmentalData\\EnvironmentalVariables_NoDuplication.csv", stringsAsFactors =  FALSE)

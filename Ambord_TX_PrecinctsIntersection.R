@@ -17,7 +17,7 @@ overlap.bg.max <- overlap.bg.max[,c("bgkey","PRECINCT_1")]
 
 #This was done by finding those block groups that overlapped the precincts and manually deleting a few that were just because of edges overlapping slightly.
 blockGroup.spdf <- readOGR(".",layer = "Harris_BlockGroups")
-blockGroup.spdf.merge <- merge(blockGroup.spdf, overlap.max)
+blockGroup.spdf.merge <- merge(blockGroup.spdf, overlap.bg.max)
 blockGroup.spdf.merge@data$GEO_FIPS <- paste(blockGroup.spdf.merge@data$STATE,blockGroup.spdf.merge@data$CTBGKEY,sep="")
 
 writeOGR(obj=blockGroup.spdf.merge, dsn=".", layer="BlockGroupsWithPrecint2", driver="ESRI Shapefile",overwrite_layer=TRUE) 
@@ -35,3 +35,7 @@ overlap.tracts.data <- overlap.tracts.data[,c(3,5,7)]
 overlap.tracts.agg <- aggregate(Shape_Area ~ CTTRTKEY, overlap.tracts.data, max)
 overlap.tracts.max <- merge(overlap.tracts.data,overlap.tracts.agg)
 overlap.tracts.max <- overlap.tracts.max[,c("CTTRTKEY","PRECINCT_1")]
+tracts.spdf <- readOGR(".",layer = "Harris_Tracts")
+tracts.spdf.merge <- merge(tracts.spdf, overlap.tracts.max)
+
+writeOGR(obj=tracts.spdf.merge, dsn=".", layer="TractsWithPrecint", driver="ESRI Shapefile",overwrite_layer=TRUE) 
