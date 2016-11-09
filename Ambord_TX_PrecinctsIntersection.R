@@ -39,3 +39,42 @@ tracts.spdf <- readOGR(".",layer = "Harris_Tracts")
 tracts.spdf.merge <- merge(tracts.spdf, overlap.tracts.max)
 
 writeOGR(obj=tracts.spdf.merge, dsn=".", layer="TractsWithPrecint", driver="ESRI Shapefile",overwrite_layer=TRUE) 
+
+
+#11/9/16: More intersections of voting precincts
+library(rgdal)
+library(sp)
+setwd("E:/GISWork_2/Archive/Ambord_TX_Voting/FilesToSampleForPrecincts")
+latlong <- "+init=epsg:4326" #This is the espg code for the WGS 1984 geographic projection
+
+# spatial data (political districts of Austria)
+precincts <- readOGR(dsn = ".", layer = "HarrisCounty_VoterPrecincts_1069")
+precincts.latlong <- spTransform(precincts, CRS(latlong))
+# view
+
+# some addresses
+points <- read.csv("Paige's List-MatchedFile.csv", stringsAsFactors = F)
+points$ID <- row.names(points)
+
+# make pts spatial
+working.points <-  (points[,c("ID","GE_LATITUDE_2010","GE_LONGITUDE_2010")])
+working.points <- working.points[complete.cases(working.points),]
+
+coordinates(working.points) <- ~GE_LONGITUDE_2010 + GE_LATITUDE_2010             #Define the coordinates to convert it to a spatial points data frame
+proj4string(working.points) <- CRS(latlong)           #Define the projection using the CRS command to convert the string with the EPSG code
+
+plot(precincts.latlong)
+plot(working.points, add=T)
+
+
+
+over.table <- over(working.points, precincts.latlong)
+over.table <- 
+working.points.table <- working.points@data
+
+
+hio <- cbind(working.points, a) # I think this needs more work
+
+a1<-read.csv("LGBT Business LatLong.txt")
+a2<-read.csv("LGBT Business LatLong_second.txt")
+identical(a1,a2)
