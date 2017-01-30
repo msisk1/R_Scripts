@@ -109,3 +109,7 @@ for (each.path in all.path.descriptions){
 china.outline<-getData("GADM",country="China",level=0)
 writeOGR(obj=china.outline,dsn=".",layer="china_outline",driver="ESRI Shapefile",overwrite_layer=T)
 plot(spTransform(china.outline, CRS(proj4string(dem))), col = "transparent", add=T)
+
+
+
+
