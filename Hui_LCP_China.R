@@ -3,7 +3,7 @@ rm(list=ls(all=TRUE)) # clear memory
 
 
 
-packages<- c("rgdal","raster","gdistance") # list the packages that you'll need
+packages<- c("rgdal","raster","gdistance","rgeos") # list the packages that you'll need
 
 lapply(packages, require, character.only=T) # load the packages, if they don't load you might need to install them first
 
@@ -67,6 +67,7 @@ plot(dem.low)
 for (each.path in all.path.descriptions){
   print(each.path)
   out.name <- paste("Route_",as.numeric(all.path.descriptions[all.path.descriptions==each.path]),sep="")
+  out.name2 <- paste("RouteSimp_",as.numeric(all.path.descriptions[all.path.descriptions==each.path]),sep="")
   site.points <- site.points.all[(site.points.all$Desc == each.path),]
   if (file.exists(paste(out.name,".shp",sep=""))){
     print("ouput already exists")
@@ -87,9 +88,14 @@ for (each.path in all.path.descriptions){
         all <- all + each.line
       }#end else
     }# end interior for loop
+    all <- gLineMerge(all)
+    all2 <- gSimplify(all, 500, topologyPreserve=FALSE)
     
-    all.df <- SpatialLinesDataFrame(all, data.frame(ID = c(1:length(all))))
+    all.df <- SpatialLinesDataFrame(all, data.frame(Name = each.path))
+    all.df2 <- SpatialLinesDataFrame(all2, data.frame(Name = each.path))
+    # all.df <- SpatialLinesDataFrame(all, data.frame(ID = c(1:length(all))))
     writeOGR(obj = all.df, dsn= ".", layer = out.name, driver="ESRI Shapefile",overwrite_layer=T) #writes the spatial points data frame as a shapefile
+    writeOGR(obj = all.df2, dsn= ".", layer = out.name2, driver="ESRI Shapefile",overwrite_layer=T) #writes the spatial points data frame as a shapefile
     
   }#end else if file exists
   plot(site.points, add=T)
@@ -100,5 +106,6 @@ for (each.path in all.path.descriptions){
 
 
 #Adding a china boundry
-a<-getData("GADM",country="China",level=0)
-plot(spTransform(a, CRS(proj4string(dem))), col = "transparent", add=T)
+china.outline<-getData("GADM",country="China",level=0)
+writeOGR(obj=china.outline,dsn=".",layer="china_outline",driver="ESRI Shapefile",overwrite_layer=T)
+plot(spTransform(china.outline, CRS(proj4string(dem))), col = "transparent", add=T)
