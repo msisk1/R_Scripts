@@ -42,6 +42,7 @@ if (!file.exists("BadenBibles_freqTable.csv")){
         write.csv(baden.bibles.geocoded, "BadenBibles_freqTable.csv",row.names =F)
 }else{
         baden.bibles.geocoded <- read.csv("BadenBibles_freqTable.csv", stringsAsFactors = F)
+        # baden.bible.freq2 <- 
         baden.bibles.all <- merge(baden.bibles, baden.bibles.geocoded[,c(1,4,5)],by="SubscriberCity")
         write.csv(baden.bibles.all, "BadenBibles_all_city.csv",row.names =F)
 }
@@ -50,6 +51,23 @@ if (!file.exists("BadenBibles_freqTable.csv")){
 
 
 sentinal <- read.csv("RawData\\Jesuit_Sentinel.csv", stringsAsFactors = F)
+sentinal$DateStr <- as.character(as.Date(sentinal$Date.1, format = "%d-%m-%Y"))
+sentinal$Date.1 <- NULL
+
+sentinal$Dated <-as.Date(sentinal$DateStr,format = "%Y-%m-%d")
+sentinal <- sentinal[sentinal$Subscriber.City != "",] #remove null cities
+
+date.list <- c("1829-09-30","1829-12-31","1830-03-31","1830-06-30","1830-09-30")
+
+sentinal.1829Sep <- sentinal[sentinal$Dated <= as.Date("1829-09-30", format = "%Y-%m-%d"),]
+sentinal.1829Dec <- sentinal[sentinal$Dated <= as.Date("1829-12-31", format = "%Y-%m-%d"),]
+sentinal.1830Mar <- sentinal[sentinal$Dated <= as.Date("1830-03-31", format = "%Y-%m-%d"),]
+sentinal.1830Jun <- sentinal[sentinal$Dated <= as.Date("1830-06-30", format = "%Y-%m-%d"),]
+sentinal.1830Sep <- sentinal[sentinal$Dated <= as.Date("1830-09-30", format = "%Y-%m-%d"),]
+
+
+
+
 if (!file.exists("sentinal_freqTable.csv")){
         sentinal$code <- paste(sentinal$Subscriber.City,sentinal$Date,sentinal$Year, sep="-")
         sentinal <- sentinal[!(sentinal$Subscriber.City == ""),]
@@ -61,9 +79,51 @@ if (!file.exists("sentinal_freqTable.csv")){
         sentinal.geocoded <-cbind.data.frame(sentinal.to.geocode, geocode(sentinal.to.geocode$Subscriber.City))
         write.csv(sentinal.geocoded, "sentinal_freqTable.csv",row.names =F)
 }else{
-        sentinal.geocoded <- read.csv("sentinal_freqTable.csv", stringsAsFactors = F)
+        sentinal.geocoded <- read.table("sentinal_freqTable2.csv", stringsAsFactors = F, header = T,sep="\t")
         sentinal.all <- merge(sentinal, sentinal.geocoded,by="Subscriber.City")
         write.csv(sentinal.all, "sentinal_all_city.csv",row.names =F)
-        sentinal.time.base <- unique(sentinal.all[,c("Subscriber.City","Date","Year","code","Freq","lon","lat")])
-        write.csv(sentinal.time.base, "sentinal_time.csv",row.names = F)
+        sentinal.time.base <- unique(sentinal.all[,c(1,16:22)])
+        write.csv(sentinal.time.base, "sentinal_time2.csv",row.names = F)
 }
+
+#Sentinal Time spots
+rm(list=ls(all=TRUE)) # clear memory
+packages<- c("foreign","ggmap") # list the packages that you'll need
+lapply(packages, require, character.only=T) # load the packages, if they don't load you might need to install them first
+
+setwd("E:\\GISWork_2\\Bohlman_CatholicsInAmerica")
+
+sentinal <- read.csv("RawData\\Jesuit_Sentinel.csv", stringsAsFactors = F)
+sentinal$DateStr <- as.character(as.Date(sentinal$Date.1, format = "%d-%m-%Y"))
+sentinal$Dated <-as.Date(sentinal$DateStr,format = "%Y-%m-%d")
+
+sentinal <- sentinal[,c("Subscriber.City","Dated")]
+
+sentinal <- sentinal[sentinal$Subscriber.City != "",] #remove null cities
+
+date.list <- c("1830-09-30","1830-06-30","1830-03-31","1829-12-31", "1829-09-30")
+first <-TRUE
+
+for (each.date in date.list){
+        sentinal.setDate <- sentinal[sentinal$Dated <= as.Date(each.date, format = "%Y-%m-%d"),]
+        
+        sentinal.table <- data.frame(table(sentinal.setDate$Subscriber.City))
+        sentinal.table$Subscriber.City <- as.character(sentinal.table$Var1)
+        sentinal.table <- sentinal.table[,c(3,2)]
+        names(sentinal.table)<-c("SubscriberCity",paste("d",each.date,sep=""))
+        if (first){
+                sentinal.total <- sentinal.table
+                first <- FALSE
+        }else{
+                sentinal.total <- merge(sentinal.total,sentinal.table,by = "SubscriberCity", all = T)
+        }  
+        
+}
+remove(sentinal.setDate,sentinal.table)
+#Redoing the geocoding
+sentinal.geocoded <-cbind.data.frame(sentinal.total, geocode(sentinal.total$SubscriberCity))
+write.csv(sentinal.geocoded, "sentinal_TimeTable.csv",row.names =F)
+
+
+
+

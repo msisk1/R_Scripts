@@ -11,9 +11,25 @@ intersection.bg.spdf <-  readOGR(".", layer = "BlockGroups_VotingPrecintsINTERSE
 
 overlap.bg.data <- intersection.bg.spdf@data
 overlap.bg.data <- overlap.bg.data[,c(9,11,13)]
-overlap.bg.agg <- aggregate(Shape_Area ~ bgkey, overlap.bg.data, max)
-overlap.bg.max <- merge(overlap.bg.data,overlap.bg.agg)
-overlap.bg.max <- overlap.bg.max[,c("bgkey","PRECINCT_1")]
+#2016-12-19: Redoing to get percentages
+test.sum <- aggregate(Shape_Area ~ bgkey, overlap.bg.data, sum) 
+names(test.sum) <- c("bgkey","sum")
+test.max <- aggregate(Shape_Area ~ bgkey, overlap.bg.data, max) 
+names(test.max) <- c("bgkey","max")
+
+
+test.count <-as.data.frame(table(overlap.bg.data$bgkey))
+test.count$bgkey <- as.numeric(as.character(test.count$Var1))
+test.count$Var1 <- NULL
+names(test.count) <- c("count","bgkey")
+
+test.all <- merge(test.sum,test.max, by = "bgkey")
+test.all <- merge(test.all,test.count, by = "bgkey")
+
+#OLD AGGREgate
+# overlap.bg.agg <- aggregate(Shape_Area ~ bgkey, overlap.bg.data, max) 
+# overlap.bg.max <- merge(overlap.bg.data,overlap.bg.agg)
+# overlap.bg.max <- overlap.bg.max[,c("bgkey","PRECINCT_1")]
 
 #This was done by finding those block groups that overlapped the precincts and manually deleting a few that were just because of edges overlapping slightly.
 blockGroup.spdf <- readOGR(".",layer = "Harris_BlockGroups")
