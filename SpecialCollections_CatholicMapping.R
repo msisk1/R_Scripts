@@ -122,8 +122,15 @@ for (each.date in date.list){
 remove(sentinal.setDate,sentinal.table)
 #Redoing the geocoding
 sentinal.geocoded <-cbind.data.frame(sentinal.total, geocode(sentinal.total$SubscriberCity))
+sentinal.geocoded[is.na(sentinal.geocoded)] <- 0
+
 write.csv(sentinal.geocoded, "sentinal_TimeTable.csv",row.names =F)
 
 
-
+library(reshape2)
+looper <- melt(sentinal.geocoded, id.vars=c("SubscriberCity", "lon", "lat"))
+looper$date <- (substr(as.character(looper$variable),2,11))
+looper$freq <- looper$value
+looper <- looper[,c(1,2,3,6,7)]
+write.csv(looper,"Sentinal_TimeAware.csv")
 
