@@ -3,7 +3,7 @@ rm(list=ls(all=TRUE)) # clear memory
 
 
 
-packages<- c("rgdal","sp","lubridate","ggplot2") # list the packages that you'll need
+packages<- c("rgdal","sp","lubridate","ggplot2","doBy") # list the packages that you'll need
 
 lapply(packages, require, character.only=T) # load the packages, if they don't load you might need to install them first
 
@@ -90,17 +90,28 @@ spplot(st.joes.lead[which (st.joes.lead$City == 2 ),], c("p_2015","p_all","p_201
 
 
 #getting monthly averages
-mon.av <- aggregate( PB_RESULT ~ Month, data = lead.data, FUN = mean, na.remove = F)
+# mon.av <- aggregate( PB_RESULT ~ Month, data = lead.data, FUN= mean,na.remove = T)
+# mon.av <- aggregate( PB_RESULT ~ Month, data = lead.data, FUN =  function(x) c( SD = sd(x), MN= mean(x) ) ) 
+mon.av <- summaryBy(PB_RESULT ~ Month, data = lead.data,FUN=c(length, mean,sd))
+mon.av$se <- mon.av$PB_RESULT.sd / sqrt(mon.av$PB_RESULT.length)
+
+# mon.av <- with(lead.data, aggregate(PB_RESULT ~ Month, FUN =  function(x) c( SD = sd(x), MN= mean(x) ) ) )
+
+
+
+c(mean = mean(x), sd = sd(x))
 # plot(mon.av, main="All children 2005-2015",type="l")
 
-p1 <- ggplot(data=mon.av, aes(x=Month, y=PB_RESULT)) + geom_line(size = 1.5) +
+p1 <- ggplot(data=mon.av, aes(x=Month, y=PB_RESULT.mean)) + geom_line(size = 1.5) +
         geom_point(size=3) +
+        geom_errorbar(aes(x=Month, ymin=PB_RESULT.mean-se, ymax=PB_RESULT.mean+se), width=0.25) + 
         scale_x_continuous(breaks=seq(1,12,1))+
         labs(x="Month", y="Average Lead Result") +
         ggtitle("All children 2005-2015")
 p1
+qplot(x,y)+geom_errorbar(aes(x=x, ymin=y-sd, ymax=y+sd), width=0.25)
 
-
+summarySE
 #GET URBAN CHILDREN MEASURE FROM TRACTS
 
 
@@ -116,3 +127,6 @@ dev.off()
 writeOGR(st.joes.lead,dsn=".",layer="StJosephTractsLeadAggregated",driver = "ESRI Shapefile", overwrite_layer=T)
 
 # table(lead.data$year)
+
+#DO NUMBER OF UNIQUE KIDS BASED ON CENSUS TRACT POPULATION
+
