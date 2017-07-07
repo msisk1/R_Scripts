@@ -7,7 +7,10 @@ packages<- c("rgdal","sp","lubridate","ggplot2","doBy","dplyr") # list the packa
 
 lapply(packages, require, character.only=T) # load the packages, if they don't load you might need to install them first
 
-
+#TODO:
+# 1). Use Michelle's data
+# 2). Stop dropping bad geocodes for mapping
+# 3). Data rework so individuals, cases, and mappables are seperate files
 
 # setwd("E:/GISWork_2/Hui_China") #WIndows maching
 setwd("E:/GISWork_2/Beidinger_Lead") #Linux machine
@@ -50,8 +53,8 @@ lead.data$real_spec <- as.Date(substr(lead.data$SPEC_DT,1,10), format = "%m/%d/%
 
 lead.data$age <- (as.Date(substr(lead.data$SPEC_DT,1,10), format = "%m/%d/%Y")- as.Date(substr(lead.data$DOB,1,10), format = "%m/%d/%Y")) / 365
 #Tossing values we don't need
-lead.data <- lead.data[which (lead.data$code != "Postal" & lead.data$code != "Locality"),]
-lead.data <- lead.data[which (lead.data$age >=0 & lead.data$age < 7),]
+# lead.data <- lead.data[which (lead.data$code != "Postal" & lead.data$code != "Locality"),]
+# lead.data <- lead.data[which (lead.data$age >=0 & lead.data$age < 7),]
 
 #keeping only the first record (i.e. converting from tests to individuals)
 if (individuals){
@@ -61,6 +64,8 @@ if (individuals){
                 slice(1L)
         lead.data <-data.frame(lead.ind)
 }
+
+preg <- lead.data[which (lead.data$PREGNANT =="Y"),]
 
 #For all
 lead.agg <- aggregate(PB_RESULT ~ get(id.field), data = lead.data, FUN = mean, na.remove = F)
@@ -115,6 +120,7 @@ remove(yearly.elevated,yearly.totals, lead.agg2, yearly.everything)
 
 
 
+
 #bring in spatial data 
 st.joe.spatial <- readOGR(dsn=".",layer=in.shape)
 if (which == "Block Groups"){
@@ -127,6 +133,9 @@ pdf(out.pdf)
 spplot(st.joes.lead[which (st.joes.lead$City == 2 ),], c("p_2007","p_2008","p_2005","p_2006"),names.attr = c("2007","2008","2005","2006"))
 spplot(st.joes.lead[which (st.joes.lead$City == 2 ),], c("p_2011","p_2012","p_2009","p_2010"),names.attr = c("2011","2012","2009","2010"))
 spplot(st.joes.lead[which (st.joes.lead$City == 2 ),], c("p_2015","p_all","p_2013","p_2014"),names.attr = c("2015","All Years","2013","2014"))
+spplot(st.joes.lead[which (st.joes.lead$City == 2 ),], c("p_all"),main = c("All Years"))
+
+
 # lead.agg2 <- merge(lead.agg2,lead.agg,by="GEO_ID")
 # write.csv(lead.agg2,"lead_test2.csv")
 
@@ -147,7 +156,7 @@ p1 <- ggplot(data=mon.av, aes(x=Month, y=PB_RESULT.mean)) + geom_line(size = 1.5
         geom_errorbar(aes(x=Month, ymin=PB_RESULT.mean-se, ymax=PB_RESULT.mean+se), width=0.25) + 
         scale_x_continuous(breaks=seq(1,12,1))+
         labs(x="Month", y="Average Lead Result") +
-        ggtitle("All children 2005-2015")
+        ggtitle("All children (under 7) 2005-2015")
 p1
 
 #GET URBAN CHILDREN MEASURE FROM TRACTS
@@ -159,13 +168,19 @@ p1
 # hist(lead.data$year,col="blue",main="All children 2005-2015")
 # aa <- as.data.frame(table(lead.data$year[which (lead.data$PB_RESULT >= 5)]))
 a<- table(lead.data$PB_RESULT<5, lead.data$year)
+b<- rbind(table(lead.data[lead.data$PB_RESULT==0,]$year),table(lead.data[lead.data$PB_RESULT>0 & lead.data$PB_RESULT<5,]$year),table(lead.data[lead.data$PB_RESULT>=5 & lead.data$PB_RESULT<10,]$year),table(lead.data[lead.data$PB_RESULT>=10,]$year))
 
 
-barplot(a, col = c("red","grey"),legend = c("elevated","<5"),xlab = "Year",ylab = paste("Number of ",labe,sep=""),main="All children 2005-2015")
+barplot(b, col = c("blue","green","yellow","red"),legend = c("0","1-4","5-9",">10"),xlab = "Year",ylab = paste("Number of ",labe,sep=""))
+
+
 dev.off()
 # writeOGR(st.joes.lead,dsn=".",layer=out.shape,driver = "ESRI Shapefile", overwrite_layer=T)
 
 # table(lead.data$year)
 
 #DO NUMBER OF UNIQUE KIDS BASED ON CENSUS TRACT POPULATION
+
+#This section is for creating a table
+
 
