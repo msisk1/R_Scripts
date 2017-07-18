@@ -3,8 +3,8 @@ rm(list=ls(all=TRUE)) # clear memory
 packages<- c("ncdf4","chron","rgdal","sp","reshape2") # list the packages that you'll need
 lapply(packages, require, character.only=T) # load the packages, if they don't load you might need to install them first
 
-#setwd("/mnt/smb/Research/OTool_Distances")
-setwd("E:\\GISWork_2\\Regan_Conflict\\2016-04-21_worldClimate")
+setwd("/home/matthew/Documents/Regan_Shapefiles") #Linux box
+# setwd("E:\\GISWork_2\\Regan_Conflict\\2016-04-21_worldClimate")  #Office computer
 #Functions
 open.netcdf.return.df<-function(file.name, outfield.name = "nothing", cut.year = NA, drop.na = FALSE){
         options(chron.year.abb=FALSE)

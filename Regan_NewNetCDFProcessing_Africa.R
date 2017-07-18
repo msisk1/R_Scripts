@@ -243,6 +243,43 @@ write.large.csv <- function(df,out.name){
 }
 
 
+
+
+conflicts.custom.gridcells <- function(grid.cells.active = grid.cells.1.5x, conflicts.spdf.active= conflicts.spdf, intro.string = "_15"){
+  conflicts <- conflicts.spdf.active@data
+  conflicts <- conflicts[,c("gwno","lat","lon","date_start","type_of_vi")]
+  
+  conflicts.with.gridcell <- append.gridcell.values(point.df = conflicts, gridcells.spdf = grid.cells, time.field = "date_start", date.string =  "%Y/%m/%d")
+  conflicts.with.gridcell$temp <- paste(conflicts.with.gridcell$Year, str_pad(conflicts.with.gridcell$month, 2, pad = "0"), sep='') #creates the year month field
+  conflicts.with.gridcell$gymID <- paste(conflicts.with.gridcell$GridID, conflicts.with.gridcell$temp, sep='-') #creates the year month field
+  conflicts.with.gridcell$temp <- NULL
+  
+  
+  contains.active <- gContains(grid.cells.active,conflicts.spdf.active,byid=T)
+  contains.list.active <- as.data.frame(apply(  contains.active, 1, function(u) paste( names(which(u)), collapse="," )))
+  names(contains.list.active) <- "listactive"
+  contains.list.active <- cbind(conflicts.with.gridcell,contains.list.active)
+  
+  
+  # unspliting
+  y<-strsplit(as.character( contains.list.active$listactive)  , ",", fixed=TRUE)
+  contains.list.active.dedup <- data.frame(ID_sp= unlist(y), contains.list.active[ rep(1:nrow(contains.list.active), sapply(y, length)) ,  ] )
+  
+  
+  
+  conflict.types <- as.data.frame.matrix ( table ( contains.list.active.dedup$gymID, contains.list.active.dedup$type_of_vi ) [,] )
+  conflict.types$gymID <- row.names(conflict.types)
+  row.names(conflict.types) <- NULL
+  conflict.types <- conflict.types[,c(4,1:3)]
+  conflict.types$cnfts_t <- rowSums(conflict.types[2:4])
+  names(conflict.types) <- c("gymID",paste(c("cnfts_1","cnfts_2","cnfts_3","cnfts_T"),intro.string,sep=""))
+  
+  return(conflict.types)
+  
+}
+
+
+extended.gridcells <- FALSE
 convert.necdfs <- FALSE
 process.ECI.soilMoisture <- FALSE
 aggrigate.environmental.data <- FALSE
@@ -768,3 +805,22 @@ final.duped$month <- final.duped$ym - as.integer(final.duped$Year)*100
 final.duped$ym <- NULL
 write.csv(final.duped,"2016-07-09_TotalRebuild.csv", row.names = FALSE)
 write.dta(final.duped, "2016-07-09_TotalRebuild.dta")
+
+
+
+if(extended.gridcells){
+  grid.cells <- readOGR(dsn= ".", layer = "Grid_Cells_2d30s")
+  grid.cells.2x <- readOGR(dsn=".",layer = "Grid_Cells_2d30m_2d30mBuffer")
+  grid.cells.1.5x <- readOGR(dsn=".",layer = "Grid_Cells_2d30s_1d15mBuffer")
+  conflicts.spdf <- readOGR(dsn=".", layer = "ConflictData")
+  
+  
+  
+  contains.2x <-  conflicts.custom.gridcells(grid.cells.active = grid.cells.2x, intro.string = "_2x")
+  
+  contain.1.5x <- conflicts.custom.gridcells(grid.cells.active = grid.cells.1.5x, intro.string = "_1.5x")
+  contains.both <- merge(contains.2x,contain.1.5x,by="gymID",all=T)
+  write.csv(contains.both,"2017-07-18_gymIDExtendedConflicts.csv",row.names=F)
+  write.dta(contains.both, "2017-07-18_gymIDExtendedConflicts.dta")
+  
+}
