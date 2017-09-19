@@ -1,6 +1,6 @@
 rm(list=ls(all=TRUE)) # clear memory
 #test
-packages<- c("ncdf4","chron","rgdal","sp","reshape2","cmsaf","stringr", "foreign","readstata13") # list the packages that you'll need
+packages<- c("ncdf4","chron","rgdal","sp","reshape2","cmsaf","stringr", "foreign","readstata13", "rgeos") # list the packages that you'll need
 lapply(packages, require, character.only=T) # load the packages, if they don't load you might need to install them first
 
 #setwd("/mnt/smb/Research/OTool_Distances")
@@ -246,19 +246,29 @@ write.large.csv <- function(df,out.name){
 
 
 conflicts.custom.gridcells <- function(grid.cells.active = grid.cells.1.5x, conflicts.spdf.active= conflicts.spdf, intro.string = "_15"){
+  if(FALSE){
+    grid.cells.active = grid.cells.1.5x
+    conflicts.spdf.active= conflicts.spdf
+    intro.string = "_15"
+  }
+  
   conflicts <- conflicts.spdf.active@data
-  conflicts <- conflicts[,c("gwno","lat","lon","date_start","type_of_vi")]
+  conflicts <- conflicts[,c("uniq","gwno","lat","lon","date_start","type_of_vi")]
   
   conflicts.with.gridcell <- append.gridcell.values(point.df = conflicts, gridcells.spdf = grid.cells, time.field = "date_start", date.string =  "%Y/%m/%d")
   conflicts.with.gridcell$temp <- paste(conflicts.with.gridcell$Year, str_pad(conflicts.with.gridcell$month, 2, pad = "0"), sep='') #creates the year month field
   conflicts.with.gridcell$gymID <- paste(conflicts.with.gridcell$GridID, conflicts.with.gridcell$temp, sep='-') #creates the year month field
   conflicts.with.gridcell$temp <- NULL
-  
-  
-  contains.active <- gContains(grid.cells.active,conflicts.spdf.active,byid=T)
+  # conflicts.with.gridcell <- conflicts.with.gridcell[order("uniq"),]
+  # row.names(grid.cells.active)<-grid.cells.active@data$Id
+  contains.active <- as.data.frame(gContains(grid.cells.active,conflicts.spdf.active,byid=T))
+  names(contains.active) <- grid.cells.active$Id
+  row.names(contains.active) <- conflicts.spdf$uniq
   contains.list.active <- as.data.frame(apply(  contains.active, 1, function(u) paste( names(which(u)), collapse="," )))
   names(contains.list.active) <- "listactive"
-  contains.list.active <- cbind(conflicts.with.gridcell,contains.list.active)
+  contains.list.active$uniq <- row.names(contains.list.active)
+  
+  contains.list.active <- merge (conflicts.with.gridcell,contains.list.active,by="uniq",all=T)
   
   
   # unspliting
