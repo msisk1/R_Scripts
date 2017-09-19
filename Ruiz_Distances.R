@@ -27,3 +27,9 @@ write.csv(processing.table,"MexicoMunicipalitiesCapitals_Processed.csv", row.nam
 # 
 # 
 # newdata <- subset(capitol.data.table, CAPITAL_CO == CODE)
+
+
+capitol.chili <- readOGR(dsn="Chile_Distances",layer = "Capitol")
+centroids.chili <-readOGR(dsn="Chile_Distances",layer = "Centroids", encoding = "UTF-8")
+centroids.chili$DistCap <- distGeo(centroids.chili,capitol.chili)
+write.csv(centroids.chili@data,"Chile_Distances\\Centroids_Distance2.csv")

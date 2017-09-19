@@ -19,8 +19,8 @@ setwd("E:/GISWork_2/Beidinger_Lead") #Linux machine
 spss2date <- function(x) as.Date(x/86400, origin = "1582-10-14")
 
 
-which <- "Tracts"
-# which <- "Block Groups"
+# which <- "Tracts"
+which <- "Block Groups"
 individuals <- TRUE
 
 if (individuals){
@@ -63,8 +63,8 @@ lead.data$real_spec <- as.Date(lead.data$SPEC_DT, format = "%m/%d/%Y")
 lead.data$real_dob <- as.Date(lead.data$DOB, format = "%m/%d/%Y")
 lead.data$age <- (lead.data$real_spec- lead.data$real_dob)/365
 #Tossing values we don't need
- lead.data <- lead.data[which (lead.data$code != "Postal" & lead.data$code != "Locality"),]
- lead.data <- lead.data[which (as.integer(lead.data$AGE_TRUNC) >=0 & as.integer(lead.data$AGE_TRUNC) < 7),]
+lead.data <- lead.data[which (lead.data$code != "Postal" & lead.data$code != "Locality"),]
+lead.data <- lead.data[which (as.integer(lead.data$AGE_TRUNC) >=0 & as.integer(lead.data$AGE_TRUNC) < 7),]
 
 #keeping only the first record (i.e. converting from tests to individuals)
 if (individuals){
@@ -156,18 +156,21 @@ if (which == "Block Groups"){
 }
 
 st.joes.lead <-merge(st.joe.spatial,lead.agg,by=id.field,all.x=T)
-
+# writeOGR(st.joes.lead,dsn=".",layer=out.shape,driver = "ESRI Shapefile", overwrite_layer=T)
 pdf(out.pdf)
 spplot(st.joes.lead[which (st.joes.lead$City == 2 ),], c("p_2007","p_2008","p_2005","p_2006"),names.attr = c("2007","2008","2005","2006"))
 spplot(st.joes.lead[which (st.joes.lead$City == 2 ),], c("p_2011","p_2012","p_2009","p_2010"),names.attr = c("2011","2012","2009","2010"))
 spplot(st.joes.lead[which (st.joes.lead$City == 2 ),], c("p_2015","p_all","p_2013","p_2014"),names.attr = c("2015","All Years","2013","2014"))
 
-
+tiff("Plot4.tif", width = 8, height = 8, units = 'in', res = 200)
 spplot(st.joes.lead[which (st.joes.lead$City == 2 ),], c("p_all"),main = c("2005-2015"))
-grid.text("Percentage of children (7 and under) with lead test > 5", x=unit(0.95, "npc"), y=unit(0.50, "npc"), rot=-90)
+list("sp.text", coordinates(x), label, cex=0.5, col="green")
+
+grid.text("Percentage of children (7 and under) with lead test > 5", x=unit(0.98, "npc"), y=unit(0.50, "npc"), rot=-90)
+dev.off()
 
 spplot(st.joes.lead[which (st.joes.lead$City == 2 ),], c("p_2015"),main = c("2015"))
-grid.text("Percentage of children (5 and under) with lead test > 5", x=unit(0.95, "npc"), y=unit(0.50, "npc"), rot=-90)
+grid.text("Percentage of children (7 and under) with lead test > 5", x=unit(0.95, "npc"), y=unit(0.50, "npc"), rot=-90)
 
 
 # lead.agg2 <- merge(lead.agg2,lead.agg,by="GEO_ID")
