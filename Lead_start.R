@@ -18,9 +18,8 @@ setwd("E:/GISWork_2/Beidinger_Lead") #Linux machine
 
 spss2date <- function(x) as.Date(x/86400, origin = "1582-10-14")
 
-
-# which <- "Tracts"
-which <- "Block Groups"
+which <- "Tracts"
+# which <- "Block Groups"
 individuals <- TRUE
 
 if (individuals){
@@ -166,11 +165,11 @@ tiff("Plot4.tif", width = 8, height = 8, units = 'in', res = 200)
 spplot(st.joes.lead[which (st.joes.lead$City == 2 ),], c("p_all"),main = c("2005-2015"))
 list("sp.text", coordinates(x), label, cex=0.5, col="green")
 
-grid.text("Percentage of children (7 and under) with lead test > 5", x=unit(0.98, "npc"), y=unit(0.50, "npc"), rot=-90)
+grid.text("Percentage of children tested with result > 5 µg/dl", x=unit(0.98, "npc"), y=unit(0.50, "npc"), rot=-90)
 dev.off()
 
 spplot(st.joes.lead[which (st.joes.lead$City == 2 ),], c("p_2015"),main = c("2015"))
-grid.text("Percentage of children (7 and under) with lead test > 5", x=unit(0.95, "npc"), y=unit(0.50, "npc"), rot=-90)
+grid.text("Percentage of children tested with result > 5 µg/dl", x=unit(0.95, "npc"), y=unit(0.50, "npc"), rot=-90)
 
 
 # lead.agg2 <- merge(lead.agg2,lead.agg,by="GEO_ID")
