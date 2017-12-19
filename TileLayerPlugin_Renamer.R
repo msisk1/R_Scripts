@@ -5,9 +5,11 @@ lapply(packages, require, character.only=T) # load the packages, if they don't l
 
 # setwd("C:/Temp/Tiles") 
 setwd("/home/matthew/Documents/HUE") 
+stub <- "ArcStreet"
 
-all.jpeg.tiles <- list.files(path = "ArcSat",pattern="\\.jpeg$")
-out.folder <- "outs"
+
+all.jpeg.tiles <- list.files(path = stub,pattern="\\.jpeg$")
+out.folder <- paste(stub,"_Processed",sep="")
 #pattern = FOLDER-FILE-ZOOM
 
 for (each.jpeg.tile in all.jpeg.tiles){
@@ -29,6 +31,6 @@ for (each.jpeg.tile in all.jpeg.tiles){
   }
   
   each.path <- paste(out.folder,"/",zoomy,"/",foldery,"/",filey,".png",sep = "")
-  each.jpg <- readJPEG(paste("ArcSat/",each.jpeg.tile,sep=""))
+  each.jpg <- readJPEG(paste(stub,"/",each.jpeg.tile,sep=""))
   writePNG(each.jpg,each.path)
 }
