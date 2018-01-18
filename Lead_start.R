@@ -7,10 +7,6 @@ packages<- c("rgdal","sp","lubridate","ggplot2","doBy","dplyr","foreign","grid")
 
 lapply(packages, require, character.only=T) # load the packages, if they don't load you might need to install them first
 
-#TODO:
-# 1). Use Michelle's data
-# 2). Stop dropping bad geocodes for mapping
-# 3). Data rework so individuals, cases, and mappables are seperate files
 
 # setwd("E:/GISWork_2/Hui_China") #WIndows maching
 setwd("E:/GISWork_2/Beidinger_Lead") #Linux machine
@@ -21,6 +17,9 @@ spss2date <- function(x) as.Date(x/86400, origin = "1582-10-14")
 which <- "Tracts"
 # which <- "Block Groups"
 individuals <- TRUE
+max.age <- 5
+
+
 
 if (individuals){
         labe <- "Individuals"
@@ -63,7 +62,7 @@ lead.data$real_dob <- as.Date(lead.data$DOB, format = "%m/%d/%Y")
 lead.data$age <- (lead.data$real_spec- lead.data$real_dob)/365
 #Tossing values we don't need
 lead.data <- lead.data[which (lead.data$code != "Postal" & lead.data$code != "Locality"),]
-lead.data <- lead.data[which (as.integer(lead.data$AGE_TRUNC) >=0 & as.integer(lead.data$AGE_TRUNC) < 7),]
+lead.data <- lead.data[which (as.integer(lead.data$AGE_TRUNC) >=0 & as.integer(lead.data$AGE_TRUNC) < max.age),]
 
 #keeping only the first record (i.e. converting from tests to individuals)
 if (individuals){
@@ -77,7 +76,7 @@ if (individuals){
 
 #making table of tests vs individual
 yearly.table.of.tests.individuals <- rbind( table(lead.data$year),table(lead.ind$year))
-barplot(yearly.table.of.tests.individuals, beside = T,col = c("blue","green"),legend = c("Tests","Individuals"),main="Children 7 and under", xlab = "Year",args.legend = list(x ='topright', bty='n'))
+barplot(yearly.table.of.tests.individuals, beside = T,col = c("blue","green"),legend = c("Tests","Individuals"),main=paste("Children ",max.age," and under",sep=""), xlab = "Year",args.legend = list(x ='topright', bty='n'))
 lead.data <- lead.ind
 
 
@@ -192,7 +191,7 @@ p1 <- ggplot(data=mon.av, aes(x=Month, y=PB_RESULT.mean)) + geom_line(size = 1.5
         geom_errorbar(aes(x=Month, ymin=PB_RESULT.mean-se, ymax=PB_RESULT.mean+se), width=0.25) + 
         scale_x_continuous(breaks=seq(1,12,1))+
         labs(x="Month", y="Average Lead Result") +
-        ggtitle("All children (under 7) 2005-2015")
+        ggtitle("All children (under 5) 2005-2015")
 p1
 
 #GET URBAN CHILDREN MEASURE FROM TRACTS
@@ -252,4 +251,35 @@ all.census.final <- merge(st.joes.lead@data,all.census,by="GEO_ID",all=T)
 all.census.final$hh_povPer <- 100* all.census.final$X2015_povFam / all.census.final$X2015_numFam
 
 exporter <- all.census.final[,c("GEO_ID","NAME","YearBuilt","N_all","N_elev","p_all","e_2015","t_2015","p_2015","hh_povPer","X2015_SE_T007_002")]
-write.csv(exporter,"Report//TractTable.csv",row.names = F)
+write.csv(exporter,"Report//TractTable_uf.csv",row.names = F)
+
+
+
+#
+#B01001_003 <- "u5_Male"
+#B01001_027 <- "u5_Female"
+#B01001_001 <- "totalpop"
+#B17001_002 <- "poverty"
+
+library(tidycensus)
+variab <- c("B01001_003","B01001_027", "B01001_001", "B17001_002" )
+
+new.census <- get_acs(geography="tract", variables = variab,year=2015, output="wide", state="IN", county=141)
+new.census$GEO_ID <- paste("1400000US",new.census$GEOID,sep="")
+
+new.census <- rev(new.census)
+names(new.census)[names(new.census) == 'B01001_003E'] <- "u5_Male"
+names(new.census)[names(new.census) == 'B01001_027E'] <- "u5_Female"
+names(new.census)[names(new.census) == 'B01001_001E'] <- "totalpop"
+names(new.census)[names(new.census) == 'B17001_002E'] <- "poverty"
+new.census$u5All <- new.census$u5_Male + new.census$u5_Female
+new.census <-  new.census[,c("GEO_ID","u5_Male","u5_Female","totalpop","poverty","u5All")]
+
+
+
+all.census <- merge(new.census,lead.agg,by="GEO_ID",all.x = T)
+write.csv(all.census,"Report//TractTable_underFiveWithCensus.csv",row.names = F)
+
+
+
+B17001002
