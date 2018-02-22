@@ -28,6 +28,9 @@ input.table$cargo[input.table$cargo == "Ca�ar"] <- "Canar"
 input.table$female.[input.table$female.  == " f"] <- "f"
 
 input.table <- input.table[!(input.table$block.no %in% c(""," ")),]
+apprenz.list <- c("SAS-sedero apprendiz","CAR apprendiz", "ZAP apprendiz", "SAS apprendiz", "SAS aprendiz", "SAS-sedero aprendiz", "PIN-escultor aprendiz", "SAS-botonero aprendiz", "CAR aprendiz", "ZAP aprendiz", "SIL aprendiz", "BAR aprendiz", "PIN aprendiz", "SOM aprendiz", "SOMaprendiz", "PLA aprendiz", "SAS-debanador de seda aprendiz", "caxetero aprendiz", "SAS-bordador aprendiz", "VIG- aprendiz", "ABR aprendiz", "confitero aprendiz", "SAS-aprendiz", "SAS-aprendiz ", "SAS aprendiz ")
+
+
 
 # sort(unique(input.table$cargo))
 
@@ -74,7 +77,10 @@ input.table$mar14 <- ifelse((   startsWith(input.table$cargo,"mayordomo") |
                                 startsWith(input.table$cargo,"fiscal") |
                                 input.table$cargo == "don; mayordomo cof Rosario"),1,0)
 
-new.vars <- input.table[,c(1,8:21)]
+input.table$appr15 <- ifelse(input.table$occupation %in% apprenz.list,1,0)
+
+
+new.vars <- input.table[,c(1,8:22)]
 new.vars2 <-aggregate(. ~ block.no, data=new.vars, FUN=sum)
 
 #OLDS
@@ -129,4 +135,4 @@ with.blockID$block.no <- NULL
 with.blockID$Id <- NULL
 with.blockID$Indices <- NULL
 agged <-aggregate(. ~ Block_ID, data=with.blockID, FUN=sum)
-write.csv(agged,"2016-07-27_AllData.csv")
+write.csv(agged,"2017-10-11_AllData.csv")
