@@ -3,7 +3,7 @@ rm(list=ls(all=TRUE)) # clear memory
 
 
 
-packages<- c("rgdal","raster","gdistance","rgeos") # list the packages that you'll need
+packages<- c("rgdal","raster","gdistance","rgeos","sp","maptools") # list the packages that you'll need
 
 lapply(packages, require, character.only=T) # load the packages, if they don't load you might need to install them first
 
@@ -51,7 +51,7 @@ dem.low <-aggregate(dem, fact =  5)
 proj4string(dem) #verify that this is non-NA
 
 #Open the list of points
-site.points.all <- read.csv("All_Locations_2016-10-11.csv")  #Read the table with Lat and lon
+site.points.all <- read.csv("All_Locations_2018-2-16.csv")  #Read the table with Lat and lon
 # site.points.table <- site.points
 coordinates(site.points.all) <- ~E + N             #Define the coordinates to convert it to a spatial points data frame
 proj4string(site.points.all) <- CRS(latlong)  
@@ -62,10 +62,11 @@ site.points.all <- spTransform(site.points.all, CRS(proj4string(dem)))
 
 all.path.descriptions <- unique(site.points.all$Desc)
 plot(dem.low)
-
-
+xxx<-0
+first.file <- TRUE
 for (each.path in all.path.descriptions){
   print(each.path)
+  xxx<-xxx+1
   out.name <- paste("Route_",as.numeric(all.path.descriptions[all.path.descriptions==each.path]),sep="")
   out.name2 <- paste("RouteSimp_",as.numeric(all.path.descriptions[all.path.descriptions==each.path]),sep="")
   site.points <- site.points.all[(site.points.all$Desc == each.path),]
@@ -89,6 +90,8 @@ for (each.path in all.path.descriptions){
       }#end else
     }# end interior for loop
     all <- gLineMerge(all)
+    # row.names(all)<-xxx
+    # all@lines[[1]]@ID <- as.character(xxx)
     all2 <- gSimplify(all, 500, topologyPreserve=FALSE)
     
     all.df <- SpatialLinesDataFrame(all, data.frame(Name = each.path))
@@ -100,6 +103,12 @@ for (each.path in all.path.descriptions){
   }#end else if file exists
   plot(site.points, add=T)
   plot(all, add=TRUE)
+  # if (first.file){
+  #   all.in.one <-all.df
+  #   first.file <- FALSE
+  # }else{
+  #   all.in.one <- rbind(all.in.one,all.df,make.row.names = TRUE)
+  # }
   
 }#end exterior for loop
 
