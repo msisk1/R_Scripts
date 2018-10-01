@@ -164,11 +164,11 @@ tiff("Plot4.tif", width = 8, height = 8, units = 'in', res = 200)
 spplot(st.joes.lead[which (st.joes.lead$City == 2 ),], c("p_all"),main = c("2005-2015"))
 list("sp.text", coordinates(x), label, cex=0.5, col="green")
 
-grid.text("Percentage of children tested with result > 5 µg/dl", x=unit(0.98, "npc"), y=unit(0.50, "npc"), rot=-90)
+grid.text("Percentage of children tested with result > 5 ?g/dl", x=unit(0.98, "npc"), y=unit(0.50, "npc"), rot=-90)
 dev.off()
 
 spplot(st.joes.lead[which (st.joes.lead$City == 2 ),], c("p_2015"),main = c("2015"))
-grid.text("Percentage of children tested with result > 5 µg/dl", x=unit(0.95, "npc"), y=unit(0.50, "npc"), rot=-90)
+grid.text("Percentage of children tested with result > 5 ?g/dl", x=unit(0.95, "npc"), y=unit(0.50, "npc"), rot=-90)
 
 
 # lead.agg2 <- merge(lead.agg2,lead.agg,by="GEO_ID")
@@ -262,22 +262,17 @@ write.csv(exporter,"Report//TractTable_uf.csv",row.names = F)
 #B17001_002 <- "poverty"
 
 library(tidycensus)
-variab <- c("B01001_003","B01001_027", "B01001_001", "B17001_002" )
+variab <- c("B01001_003","B01001_027" )
 
-new.census <- get_acs(geography="tract", variables = variab,year=2015, output="wide", state="IN", county=141)
-new.census$GEO_ID <- paste("1400000US",new.census$GEOID,sep="")
+new.census <- get_acs(geography="block group", variables = variab,year=2016, output="wide", state="IN", county=141)
+new.census$GEO_ID <- paste("15000US",new.census$GEOID,sep="")
 
 new.census <- rev(new.census)
-names(new.census)[names(new.census) == 'B01001_003E'] <- "u5_Male"
-names(new.census)[names(new.census) == 'B01001_027E'] <- "u5_Female"
-names(new.census)[names(new.census) == 'B01001_001E'] <- "totalpop"
-names(new.census)[names(new.census) == 'B17001_002E'] <- "poverty"
-new.census$u5All <- new.census$u5_Male + new.census$u5_Female
-new.census <-  new.census[,c("GEO_ID","u5_Male","u5_Female","totalpop","poverty","u5All")]
+new.census <- new.census[,c("GEOID","NAME","GEO_ID")]
 
+table <- read.csv("/home/matthew/Documents/R11668083_SL150.csv", stringsAsFactors = F)
 
-
-all.census <- merge(new.census,lead.agg,by="GEO_ID",all.x = T)
+all.census <- merge(new.census,table,by="GEO_ID",all.x = T)
 write.csv(all.census,"Report//TractTable_underFiveWithCensus.csv",row.names = F)
 
 

@@ -15,10 +15,11 @@ lapply(packages, require, character.only=T) # load the packages, if they don't l
 # setwd("E:/GISWork_2/Hui_China") #WIndows maching
 setwd("/home/matthew/Documents/HUI") #Linux machine
 
-exten <- "2018-03-27"
-in.file <- paste("All_Locations_", exten, ".csv", sep="")
-in.file <-"1 West Han Routes.csv"
+exten <- "2018-04-02"
 out.path <- paste("paths_",exten,sep="")
+
+in.files <- list.files(path = out.path, pattern = ".csv$")
+# in.file <- in.files[2]
 
 #Functions
 scaleBB <- function(box){
@@ -63,65 +64,84 @@ if (!file.exists("chgis_dem_low.tif")){
 
 proj4string(dem) #verify that this is non-NA
 
-#Open the list of points
-site.points.all <- read.csv(in.file)  #Read the table with Lat and lon
-# site.points.table <- site.points
-coordinates(site.points.all) <- ~E + N             #Define the coordinates to convert it to a spatial points data frame
-proj4string(site.points.all) <- CRS(latlong)  
-site.points.all <- spTransform(site.points.all, CRS(proj4string(dem)))
-(proj4string(site.points.all) == proj4string(dem))
 
+for (in.file in in.files){
+  print(in.file)
+  temp.folder <- file.path(out.path, tools::file_path_sans_ext(in.file))
+  if (!dir.exists(temp.folder)){
+    dir.create(temp.folder)
+  }
 
-
-all.path.descriptions <- unique(site.points.all$Desc)
-plot(dem.low)
-xxx<-0
-first.file <- TRUE
-for (each.path in all.path.descriptions){
-  print(each.path)
-  xxx<-xxx+1
-  out.name <- paste("Route_",as.numeric(all.path.descriptions[all.path.descriptions==each.path]),sep="")
-  # out.name2 <- paste("RouteSimp_",as.numeric(all.path.descriptions[all.path.descriptions==each.path]),sep="")
-  site.points <- site.points.all[(site.points.all$Desc == each.path),]
-  if (file.exists(paste(out.path,"/",out.name,".shp",sep=""))){
-    print("ouput already exists")
-    all <- readOGR(dsn=out.path, layer = out.name)
-    #next()
-  }else{
-    # print(site.points)
-    first <- T
-    for (x in 1:(nrow(site.points)-1)){
-      print(paste(x,x+1))
-      clip_dem <- crop(dem,scaleBB(bbox(site.points[x:(x+1),])))
-      Conductance <- calculateConductance(clip_dem)
-      each.line <- shortestPath(Conductance, site.points@coords[x,], site.points@coords[x+1,], output="SpatialLines")
-      if (first){
-        all <- each.line
-        first <- FALSE
-      }else{
-        all <- all + each.line
-      }#end else
-    }# end interior for loop
-    all <- gLineMerge(all)
-    # all2 <- gSimplify(all, 500, topologyPreserve=FALSE)
-    
-    all.df <- SpatialLinesDataFrame(all, data.frame(Name = each.path))
-    # all.df2 <- SpatialLinesDataFrame(all2, data.frame(Name = each.path))
-    # all.df <- SpatialLinesDataFrame(all, data.frame(ID = c(1:length(all))))
-    writeOGR(obj = all.df, dsn= out.path, layer = out.name, driver="ESRI Shapefile",overwrite_layer=T) #writes the spatial points data frame as a shapefile
-    # writeOGR(obj = all.df2, dsn= out.path, layer = out.name2, driver="ESRI Shapefile",overwrite_layer=T) #writes the spatial points data frame as a shapefile
-    
-  }#end else if file exists
-  plot(site.points, add=T)
-  plot(all, add=TRUE)
-  # if (first.file){
-  #   all.in.one <-all.df
-  #   first.file <- FALSE
-  # }else{
-  #   all.in.one <- rbind(all.in.one,all.df,make.row.names = TRUE)
-  # }
+  #Open the list of points
+  site.points.all <- read.csv(paste(out.path,in.file,sep="/"))  #Read the table with Lat and lon
+  # site.points.table <- site.points
+  coordinates(site.points.all) <- ~E + N             #Define the coordinates to convert it to a spatial points data frame
+  proj4string(site.points.all) <- CRS(latlong)  
+  site.points.all <- spTransform(site.points.all, CRS(proj4string(dem)))
+  (proj4string(site.points.all) == proj4string(dem))
   
-}#end exterior for loop
+  
+  
+  all.path.descriptions <- unique(site.points.all$Desc)
+  plot(dem.low)
+  first.file <- TRUE
+  for (each.path in all.path.descriptions){
+    print(each.path)
+    # out.name <- paste("Route_",as.numeric(all.path.descriptions[all.path.descriptions==each.path]),sep="")
+    out.name <- paste("Route_",strsplit(as.character(each.path),split = " ")[[1]][2],sep="")
+    
+    # out.name2 <- paste("RouteSimp_",as.numeric(all.path.descriptions[all.path.descriptions==each.path]),sep="")
+    site.points <- site.points.all[(site.points.all$Desc == each.path),]
+    if (file.exists(paste(temp.folder,"/",out.name,".shp",sep=""))){
+      print("ouput already exists")
+      all.df <- readOGR(dsn=temp.folder, layer = out.name)
+      #next()
+    }else{
+      # print(site.points)
+      first <- T
+      for (x in 1:(nrow(site.points)-1)){
+        print(paste(x,x+1))
+        q <- bbox(site.points[x:(x+1),])
+        q[,"max"] <- q[,"max"] + res(dem)
+        q[,"min"] <- q[,"min"] - res(dem)
+        clip_dem <- crop(dem,scaleBB(q))
+        Conductance <- calculateConductance(clip_dem)
+        each.line <- shortestPath(Conductance, site.points@coords[x,], site.points@coords[x+1,], output="SpatialLines")
+        if (first){
+          all <- each.line
+          first <- FALSE
+        }else{
+          all <- all + each.line
+        }#end else
+      }# end interior for loop
+      all <- gLineMerge(all)
+      # all2 <- gSimplify(all, 500, topologyPreserve=FALSE)
+      
+      all.df <- SpatialLinesDataFrame(all, data.frame(Name = each.path))
+      # all.df2 <- SpatialLinesDataFrame(all2, data.frame(Name = each.path))
+      # all.df <- SpatialLinesDataFrame(all, data.frame(ID = c(1:length(all))))
+      writeOGR(obj = all.df, dsn= temp.folder, layer = out.name, driver="ESRI Shapefile",overwrite_layer=T) #writes the spatial points data frame as a shapefile
+      # writeOGR(obj = all.df2, dsn= out.path, layer = out.name2, driver="ESRI Shapefile",overwrite_layer=T) #writes the spatial points data frame as a shapefile
+      
+    }#end else if file exists
+    plot(site.points, add=T)
+    plot(all.df, add=TRUE)
+    if (first.file){
+      all.in.one <-all.df
+      first.file <- FALSE
+    }else{
+      all.in.one <- rbind(all.in.one,all.df)
+    }
+    
+  }#end exterior for loop
+  writeOGR(dsn=out.path, obj = all.in.one, layer = paste(tools::file_path_sans_ext(in.file),"_AllPaths",sep=""),driver = "ESRI Shapefile" ,overwrite_layer = T)
+  
+  
+    
+}# end of the loop through files
+
+
+
 
 
 
@@ -133,3 +153,18 @@ plot(spTransform(china.outline, CRS(proj4string(dem))), col = "transparent", add
 
 
 
+each.sldf <- spTransform(all.in.one, CRS((latlong)))
+each.pointsDF <- spTransform(site.points.all, CRS((latlong)))
+pal <- colorFactor(c("navy", "red","orange","cyan","yellow","blue","black"), domain = unique(each.sldf$Name))
+
+
+leaflet() %>%
+  # fitBounds(-129,24.2,-65.58,50.54)%>%
+  addProviderTiles(providers$Stamen.TonerLite, options = providerTileOptions(minZoom = 1, maxZoom = 13, noWrap = F)) %>%
+  addPolylines(data = each.sldf, popup = ~Name, color = ~pal(Name),opacity = 1) %>%
+  addCircleMarkers(data = each.pointsDF, popup = ~Location, color = ~pal(Desc), radius = 5)%>%
+  addLegend("bottomleft", pal = pal, values = each.sldf$Name,
+            title = "each title",
+            opacity = 1
+  )
+  
