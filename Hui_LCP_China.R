@@ -15,23 +15,28 @@ lapply(packages, require, character.only=T) # load the packages, if they don't l
 # setwd("E:/GISWork_2/Hui_China") #WIndows maching
 setwd("/home/matthew/Documents/HUI") #Linux machine
 
-exten <- "2018-04-02"
-out.path <- paste("paths_",exten,sep="")
-
-in.files <- list.files(path = out.path, pattern = ".csv$")
+# exten <- "2018-04-02"
+# out.path <- paste("paths_",exten,sep="")
+# 
+# in.files <- list.files(path = out.path, pattern = ".csv$")
 # in.file <- in.files[2]
 
 #Functions
 scaleBB <- function(box){
   # box <- bbox(site.points[1:2,])
   # box <- bbox(site.points[x:x+1,])
-  ew <- (box["E","max"] -box["E","min"]) / 4
-  ns <- (box["N","max"] -box["N","min"]) / 4
+  #renamed bbox fields? This needed to be switched to indices
+  # ew <- (box["E","max"] -box["E","min"]) / 4
+  # ns <- (box["N","max"] -box["N","min"]) / 4
+  ew <- (box[1,1] -box[1,2]) / 4
+  ns <- (box[2,1] -box[2,2]) / 4
   if (ns < 1000){
     ns <- ew
   }
+  # M <- matrix(c(-ew,-ns,ew,ns), ncol = 2)
   M <- matrix(c(-ew,-ns,ew,ns), ncol = 2)
-  return(box + M)
+  
+    return(box - M)
 }
 altDiff <- function(x){x[2] - x[1]}
 calculateConductance <- function(in.raster){
@@ -63,6 +68,77 @@ if (!file.exists("chgis_dem_low.tif")){
 }
 
 proj4string(dem) #verify that this is non-NA
+
+#new data processing section
+master.file <- read.csv("paths_2019-04-23/Han Data - Data Prepared for Matt.csv", stringsAsFactors = F)
+master.file <- master.file[!is.na(master.file$N),]
+master.file <- master.file[!is.na(master.file$N.1),]
+subset.file <- master.file[master.file$Identification.Number ==1,]
+first <- T
+# for (each.id in unique(master.file$Identification.Number)){
+for (each.id in row.names(master.file)){
+
+  subset.file <- master.file[row.names(master.file) ==each.id,]
+  print(each.id)
+  subset.origins <- subset.file
+  coordinates(subset.origins) <- ~E + N             #Define the coordinates to convert it to a spatial points data frame
+  proj4string(subset.origins) <- CRS(latlong)
+  subset.origins <- spTransform(subset.origins, CRS(proj4string(dem)))
+  # 
+  # 
+  subset.dest <- subset.file
+  coordinates(subset.dest) <- ~E.1 + N.1             #Define the coordinates to convert it to a spatial points data frame
+  proj4string(subset.dest) <- CRS(latlong)
+  subset.dest <- spTransform(subset.dest, CRS(proj4string(dem)))
+  subset.all <- subset.dest + subset.origins
+  q <- bbox(subset.all)
+  q[,"max"] <- q[,"max"] + res(dem)
+  q[,"min"] <- q[,"min"] - res(dem)
+  clip_dem <- crop(dem,scaleBB(q))
+  #crate concordance for the clip
+  Conductance <- calculateConductance(clip_dem)
+
+  #shortest
+  each.line <- shortestPath(Conductance,origin = subset.origins@coords[1,],goal = subset.dest@coords[1,] , output="SpatialLines")
+  each.sldf <- SpatialLinesDataFrame(sl = each.line, data = subset.file, match.ID = F)
+  # row.names(each.sldf) <- row.names(subset.file)
+  if (first){
+    all <- each.sldf
+    first <- F
+  }else{
+    all <-all + each.sldf
+  }
+}
+plot(all)
+
+#create points out of each line (old way was line x to line x+1)
+subset.origins <- subset.file
+coordinates(subset.origins) <- ~E + N             #Define the coordinates to convert it to a spatial points data frame
+proj4string(subset.origins) <- CRS(latlong)  
+subset.origins <- spTransform(subset.origins, CRS(proj4string(dem)))
+
+
+subset.dest <- subset.file
+coordinates(subset.dest) <- ~E.1 + N.1             #Define the coordinates to convert it to a spatial points data frame
+proj4string(subset.dest) <- CRS(latlong)  
+subset.dest <- spTransform(subset.dest, CRS(proj4string(dem)))
+
+
+#bounding box clip
+# library(sp)
+subset.all <- subset.dest + subset.origins
+q <- bbox(subset.all)
+q[,"max"] <- q[,"max"] + res(dem)
+q[,"min"] <- q[,"min"] - res(dem)
+clip_dem <- crop(dem,scaleBB(q))
+#crate concordance for the clip
+Conductance <- calculateConductance(clip_dem)
+
+#shortest
+each.line <- shortestPath(Conductance,origin = subset.origins@coords[1,],goal = subset.dest@coords[1,] , output="SpatialLines")
+
+
+
 
 
 for (in.file in in.files){
