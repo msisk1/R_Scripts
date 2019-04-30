@@ -1,0 +1,13 @@
+name: hui_chinapathsapp
+title:
+username:
+account: msisk1
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 286580
+bundleId: 1316170
+url: https://msisk1.shinyapps.io/hui_chinapathsapp/
+when: 1523563954.5733
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: GADM_2.8_CHN_adm0.rds|data/1 West Han Routes_AllPaths.dbf|data/1 West Han Routes_AllPaths.prj|data/1 West Han Routes_AllPaths.shp|data/1 West Han Routes_AllPaths.shx|data/1 West Han Routes.csv|data/2 East Han Routes_AllPaths.dbf|data/2 East Han Routes_AllPaths.prj|data/2 East Han Routes_AllPaths.shp|data/2 East Han Routes_AllPaths.shx|data/2 East Han Routes.csv|data/3 Sui Routes_AllPaths.dbf|data/3 Sui Routes_AllPaths.prj|data/3 Sui Routes_AllPaths.shp|data/3 Sui Routes_AllPaths.shx|data/3 Sui Routes.csv|data/4 Tang Routes_AllPaths.dbf|data/4 Tang Routes_AllPaths.prj|data/4 Tang Routes_AllPaths.shp|data/4 Tang Routes_AllPaths.shx|data/4 Tang Routes.csv|data/5 Ming Routes_AllPaths.dbf|data/5 Ming Routes_AllPaths.prj|data/5 Ming Routes_AllPaths.shp|data/5 Ming Routes_AllPaths.shx|data/5 Ming Routes.csv|data/6 Qing Routes_AllPaths.dbf|data/6 Qing Routes_AllPaths.prj|data/6 Qing Routes_AllPaths.shp|data/6 Qing Routes_AllPaths.shx|data/6 Qing Routes.csv

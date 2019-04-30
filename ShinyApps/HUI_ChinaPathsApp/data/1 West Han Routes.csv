@@ -1,0 +1,32 @@
+Location,Order,N,E,Desc,Final
+Xian,1,34.3416,108.9398,Route 1 (Toward the NW/Xinjiang),0
+Tianshui,2,34.5809,105.725,Route 1 (Toward the NW/Xinjiang),0
+Longxi,3,35.0039,104.635,Route 1 (Toward the NW/Xinjiang),0
+Lanzhou,4,36.0611,103.8343,Route 1 (Toward the NW/Xinjiang),0
+Langaoxia,5,36.3327,103.9474,Route 1 (Toward the NW/Xinjiang),0
+Zhangye,6,38.9259,100.44979,Route 1 (Toward the NW/Xinjiang),0
+Jiayu Guan,7,39.7731,98.2892,Route 1 (Toward the NW/Xinjiang),0
+Dunhuang,8,40.1421,94.662,Route 1 (Toward the NW/Xinjiang),0
+Yumen Guan,9,40.352,93.8649,Route 1 (Toward the NW/Xinjiang),0
+Hami,10,42.8184,93.5152,Route 1 (Toward the NW/Xinjiang),0
+Karasahr,11,42.0623,86.571,Route 1 (Toward the NW/Xinjiang),0
+Kuqa,12,41.7179,82.962,Route 1 (Toward the NW/Xinjiang),0
+Aksu,13,41.1675,80.2634,Route 1 (Toward the NW/Xinjiang),0
+Kashgar,14,39.4677,75.9938,Route 1 (Toward the NW/Xinjiang),0
+Hami,1,42.8184,93.5152,Route 1.1 (Toward the NW/Xinjiang 1.1),0
+Turpan,2,42.9514,89.1897,Route 1.1 (Toward the NW/Xinjiang 1.1),0
+Urumqi,3,43.8256,87.6168,Route 1.1 (Toward the NW/Xinjiang 1.1),0
+Beijing,1,39.9042,116.4074,Route 2 (Toward Mongolia),0
+Shangzhuangbao,2,40.767,114.7406,Route 2 (Toward Mongolia),0
+Suweishan,3,41.1586,114.7201,Route 2 (Toward Mongolia),0
+Hohhot,4,40.8426,111.7492,Route 2 (Toward Mongolia),0
+Ulaanbaatar (Mongolia),5,47.8864,106.9057,Route 2 (Toward Mongolia),0
+Ulan-ude (Russia),6,51.8239,107.6073,Route 2 (Toward Mongolia),0
+Liaoyang,1,41.2672,123.2369,Route 3 (Toward the NE/Manchuria and Korea),0
+Sinuiju,2,40.0823,124.4489,Route 3 (Toward the NE/Manchuria and Korea),0
+Pyongyang,3,39.0392,125.7625,Route 3 (Toward the NE/Manchuria and Korea),0
+Nanchang,1,28.6829,115.8582,Route 4 (Toward the SE/Vietnam),0
+Qujiang,2,24.6825,113.6045,Route 4 (Toward the SE/Vietnam),0
+Shimen,3,23.1573,113.28,Route 4 (Toward the SE/Vietnam),0
+Guangzhou,4,23.1291,113.2644,Route 4 (Toward the SE/Vietnam),0
+Hanoi (Vietnam),5,21.0278,105.8342,Route 4 (Toward the SE/Vietnam),0

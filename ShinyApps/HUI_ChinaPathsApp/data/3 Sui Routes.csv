@@ -1,0 +1,18 @@
+Location,Order,N,E,Desc,Final
+Mayi,1,39.3316,112.4328,Route 1 (To Mongolia),0
+Zulishan,2,39.9891,112.467,Route 1 (To Mongolia),0
+Qifupo,3,40.5788,112.7033,Route 1 (To Mongolia),0
+Baidao,4,40.8424,111.75,Route 1 (To Mongolia),0
+Qinshan,5,41.0965,111.4513,Route 1 (To Mongolia),0
+Yunzhou,1,39.9211,111.6476,Route 2 (To Northwest),0
+Datong,2,41.9711,101.0619,Route 2 (To Northwest),0
+Lulongsai,1,40.1487,118,Route 3 (To Northeast),0
+Pingzhou,2,39.8919,118.893,Route 3 (To Northeast),0
+Helong,3,41.5737,120.4494,Route 3 (To Northeast),0
+Liaoshui,1,42.1105,123.1949,Route 4 (To North Korea),0
+Huaiyuan,2,41.666,122.1234,Route 4 (To North Korea),0
+Liaodong,3,41.2672,123.237,Route 4 (To North Korea),0
+Wugucheng,4,40.9696,123.758,Route 4 (To North Korea),0
+Yalvjiang,5,40.7949,125.5502,Route 4 (To North Korea),0
+Sashui,6,39.6394,125.6056,Route 4 (To North Korea),0
+Pyongyang,7,39.0392,125.7625,Route 4 (To North Korea),0
