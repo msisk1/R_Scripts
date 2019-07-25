@@ -6,14 +6,15 @@ library(lubridate)  #For coverting the date formats
 library(sf)         #A newer spatial data model
 library(tidyverse)  
 library(dodgr)
-
+library(googleway)
 latlong <- "+init=epsg:4326"   #These are codes for particular coordinate systems
 google <- "+init=epsg:3857"
 osm.file.cache <- "roads2.osm"
 inc.data.storage <- "AllData.RData"
 
 setwd("E:\\GISWork_2\\Shen_Paths")
-
+load( file = "key.RData")
+set_key(key = google.key)
 
 if (file.exists(inc.data.storage)){
   print("Opening Cache")
@@ -62,9 +63,11 @@ convert.path <- function(path.obj, netwrk = nav.network, verts2 = verts){
   return(path1)
 }
 
+first = TRUE
 #Building a single subset for testing
-for(each.date in unique(oneperson2$DayMonthYear)){
-  one.subet <- oneperson2 %>%
+# for(each.date in unique(oneperson2$DayMonthYear)){
+for(each.date in unique(oneperson2$DayMonthYear)[1:2]){
+    one.subet <- oneperson2 %>%
     filter(DayMonthYear == each.date,
            Accuracy < 65) # throwing out low accuracy points to see if it has an affect
   one.subet <- one.subet %>%
@@ -75,18 +78,28 @@ for(each.date in unique(oneperson2$DayMonthYear)){
   #Move each GPS point to the closest vertex on the road network. This dramatically improves accuracy
   for (x in 1:nrow(one.subet)){
     pts <- st_cast(dat[as.integer(one.subet[x,"nearest"])[1],"geometry"], "POINT")
-    clos <- pts[st_nearest_feature(one.subet[x,"geometry"],pts),"geometry"]
+    clos <- pts[suppressWarnings(st_nearest_feature(one.subet[x,"geometry"],pts)),"geometry"]
     one.subet[x,]$geometry <- clos$geometry
-  }#
+  }#end moving points
   
-  
-
   for (x in 1:(nrow(one.subet)-1)){
     print(x)
+    type <- "same"
+    if(one.subet[x,]$nearest != one.subet[x,]$nextID){
+      type<- "change"
+    }
     dp <- dodgr_paths (nav.network, from = st_coordinates(one.subet[x,]), to = st_coordinates(one.subet[x+1,]), quiet = T)
     if (length(dp$`1`$`1-1`) > 0){
       p1 <- convert.path(dp)
-      each.row <- st_sf(startDT = one.subet[x,]$Timestamp, endDT = one.subet[x+1,]$Timestamp, DMY = each.date,p1$geometry)
+      each.row <- st_sf(Type = type,
+                        startDT = one.subet[x,]$Timestamp, 
+                        endDT = one.subet[x+1,]$Timestamp, 
+                        DMY = each.date, 
+                        latOrig =  one.subet[x,]$lat, 
+                        lonOrig = one.subet[x,]$lon,  
+                        latDest =  one.subet[x+1,]$lat, 
+                        lonDest = one.subet[x+1,]$lon,
+                        p1$geometry)      
       if(first){
         all.rows <- each.row
         first <- FALSE
@@ -98,13 +111,38 @@ for(each.date in unique(oneperson2$DayMonthYear)){
     }
   }
 }# end for loop for all dates
-# one.subet <- oneperson2 %>%
-#   filter(DayMonthYear == "2018-1-15",
-#          Accuracy < 65) # throwing out low accuracy points to see if it has an affect
+all.rows$length <- as.numeric(st_length(all.rows))
+all.rows2 <- all.rows %>% filter(Type == "change" & length > 500)
+for (x in 1:(nrow(all.rows2))){
+  orig.coord <- st_coordinates(oneperson2[oneperson2$Timestamp == all.rows2[x,]$startDT,])
+  dest.cord <-  st_coordinates(oneperson2[oneperson2$Timestamp == all.rows2[x,]$endDT,])
+  df <- google_directions(origin =      c(orig.coord[2],orig.coord[1]),
+                          destination = c(dest.cord[2],dest.cord[1]),
+                          mode = "driving",
+                          alternatives = T)
+  
+  
+  df_routes$each <- sapply(df_routes$polyline, function(y){
+    df_coords <- decode_pl(as.character(y))
+    st_linestring(as.matrix(df_coords[,c("lon","lat")]), dim = "XY")
+    
+  })
+  df_routes$geometry <- st_sfc((geom = df_routes$each))
+  
+}#end loop through all routers
+df <- google_directions(origin =      c(st_coordinates(one.subet[01,])[2],st_coordinates(one.subet[01,])[1]),
+                        destination = c(st_coordinates(one.subet[10,])[2],st_coordinates(one.subet[10,])[1]),
+                        mode = "driving",
+                        alternatives = T)
 
 
-#This throws out all the cases where one point has the same road before and after it. 
-#   Should take care of cases where a GPS point has jumped from one road to another as well as cases where the gps stays on the same road for multiple points
+df_routes$each <- sapply(df_routes$polyline, function(y){
+  df_coords <- decode_pl(as.character(y))
+  st_linestring(as.matrix(df_coords[,c("lon","lat")]), dim = "XY")
+  
+})
+df_routes$geometry <- st_sfc((geom = df_routes$each))
+
 
 
 write_sf(all.rows, "FirstRun_car_All_moved.shp")
