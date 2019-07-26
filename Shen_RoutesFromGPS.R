@@ -64,13 +64,13 @@ convert.path <- function(path.obj, netwrk = nav.network, verts2 = verts){
 }
 
 first = TRUE
-#Building a single subset for testing
+#Iterating through all of the dates
 # for(each.date in unique(oneperson2$DayMonthYear)){
 for(each.date in unique(oneperson2$DayMonthYear)[1:2]){
     one.subet <- oneperson2 %>%
     filter(DayMonthYear == each.date,
            Accuracy < 65) # throwing out low accuracy points to see if it has an affect
-  one.subet <- one.subet %>%
+  one.subet <- one.subet %>% #adding in fields that are the previous and next road ID
     arrange(Timestamp) %>%
     mutate(prevID = lag(nearest, order_by = Timestamp),
            nextID = lead(nearest, order_by = Timestamp))%>%
@@ -81,7 +81,7 @@ for(each.date in unique(oneperson2$DayMonthYear)[1:2]){
     clos <- pts[suppressWarnings(st_nearest_feature(one.subet[x,"geometry"],pts)),"geometry"]
     one.subet[x,]$geometry <- clos$geometry
   }#end moving points
-  
+  #Iterates through and creates the optimal route either along the same road (same) or to a new road(change)
   for (x in 1:(nrow(one.subet)-1)){
     print(x)
     type <- "same"
@@ -113,36 +113,38 @@ for(each.date in unique(oneperson2$DayMonthYear)[1:2]){
 }# end for loop for all dates
 all.rows$length <- as.numeric(st_length(all.rows))
 all.rows2 <- all.rows %>% filter(Type == "change" & length > 500)
+all.rows.update <- all.rows2[0,]
 for (x in 1:(nrow(all.rows2))){
+  # print(each.row)
   orig.coord <- st_coordinates(oneperson2[oneperson2$Timestamp == all.rows2[x,]$startDT,])
   dest.cord <-  st_coordinates(oneperson2[oneperson2$Timestamp == all.rows2[x,]$endDT,])
+  each.row <- all.rows2[x,]    
+  each.row$Type <- "google"
+  
   df <- google_directions(origin =      c(orig.coord[2],orig.coord[1]),
                           destination = c(dest.cord[2],dest.cord[1]),
                           mode = "driving",
                           alternatives = T)
-  
-  
-  df_routes$each <- sapply(df_routes$polyline, function(y){
-    df_coords <- decode_pl(as.character(y))
-    st_linestring(as.matrix(df_coords[,c("lon","lat")]), dim = "XY")
-    
-  })
-  df_routes$geometry <- st_sfc((geom = df_routes$each))
+  print(paste(x, nrow(df$routes),sep = ": "))
+  if (nrow(df$routes)>1){
+    df_routes <- data.frame(polyline = direction_polyline(df)) 
+    df_routes$each <- sapply(df_routes$polyline, function(y){
+      df_coords <- decode_pl(as.character(y))
+      st_linestring(as.matrix(df_coords[,c("lon","lat")]), dim = "XY")
+      
+    })
+    df_routes$geometry <- st_sfc((geom = df_routes$each),crs = 4326)
+    each.row <- each.row[rep(seq_len(nrow(each.row)), each=nrow(df$routes)),]
+    each.row$p1.geometry <- df_routes$geometry
+  }else{ #if only one route
+    pl <- decode_pl(direction_polyline(df))
+    each <- st_linestring(as.matrix(pl[,c("lon","lat")]), dim = "XY")
+    each.row$p1.geometry <- st_sfc((geom = each),crs = 4326 )
+  }
+  all.rows.update <- rbind(all.rows.update, each.row)
   
 }#end loop through all routers
-df <- google_directions(origin =      c(st_coordinates(one.subet[01,])[2],st_coordinates(one.subet[01,])[1]),
-                        destination = c(st_coordinates(one.subet[10,])[2],st_coordinates(one.subet[10,])[1]),
-                        mode = "driving",
-                        alternatives = T)
-
-
-df_routes$each <- sapply(df_routes$polyline, function(y){
-  df_coords <- decode_pl(as.character(y))
-  st_linestring(as.matrix(df_coords[,c("lon","lat")]), dim = "XY")
-  
-})
-df_routes$geometry <- st_sfc((geom = df_routes$each))
-
+all.rows <- rbind(all.rows,all.rows.update)
 
 
 write_sf(all.rows, "FirstRun_car_All_moved.shp")
