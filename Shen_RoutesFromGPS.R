@@ -1,72 +1,68 @@
 rm(list=ls(all=TRUE)) # clear memory
 
+#This takes a series of GPS points along a road, snaps them to the nearest road, filters them to remove
+# some errors, and creates a line from a transportation network built from OpenStreetMap data. In cases
+# Where it is not clear which route it uses, it takes the possible routes from google maps
+
+
 
 library(rgdal)      #This is the base package for working with spatial data in R
 library(lubridate)  #For coverting the date formats
 library(sf)         #A newer spatial data model
 library(tidyverse)  
-library(dodgr)
-library(googleway)
-latlong <- "+init=epsg:4326"   #These are codes for particular coordinate systems
-google <- "+init=epsg:3857"
+library(dodgr)      #transportation routing
+library(googleway)  #Interfacing with the google maps API
+
+latlong <- 4326   #These are codes for particular coordinate systems
+
 osm.file.cache <- "roads2.osm"
 inc.data.storage <- "AllData.RData"
 
 setwd("E:\\GISWork_2\\Shen_Paths")
-load( file = "key.RData")
-set_key(key = google.key)
+load( file = "key.RData") # You can either register for your own, or I can send this file. I can push the actual key
+set_key(key = google.key) #sets the key in the googleway package
 
-if (file.exists(inc.data.storage)){
+if (file.exists(inc.data.storage)){ #If the data has been processed file, use this
   print("Opening Cache")
   load(inc.data.storage)
-}else{
+}else{ #Otherwise, process it
   load("a26da9ec19d7be28e90d1ea829b8e34a21246207e9d915e290207b8538274d20.Rdata")
-  
   #Convert the date into a real date
   oneperson$date <- as.POSIXct(oneperson$Timestamp,origin = "1970-01-01",tz = "GMT") #Convert the original time stamp to a datetime object
   oneperson$DayMonthYear <- paste(year(oneperson$date),month(oneperson$date),day(oneperson$date),sep="-") #convert once more to text for filtering
-  # oneperson <- unique(oneperson)
-  oneperson <- oneperson %>% #Chanmging to this way because there are duplicate timestamps that mess up the routing. just choosing one of them is fine
+  oneperson <- oneperson %>% #Changing to this way because there are duplicate timestamps that mess up the routing. just choosing one of them is fine
     distinct(Timestamp, .keep_all = TRUE)
-  
-  
-  oneperson2 <- oneperson
-  oneperson2$X <- oneperson2$long
+  oneperson2 <- oneperson #just to keep a copy of the unaltered data
+  oneperson2$X <- oneperson2$long #copying these so the original coordinates remain in the dataset
   oneperson2$Y <- oneperson2$lat
   oneperson2 <- oneperson2 %>% #projecting the table as an sf and setting the coordinate system
     sf::st_as_sf(coords = c("X","Y")) %>% 
-    sf::st_set_crs(4326) 
-  # coordinates(oneperson2) <- ~X * Y #Converting the original data frame into a spatial one
-  # proj4string(oneperson2) <- CRS("+init=epsg:4326") #This is the espg code for the WGS 1984 geographic projection
-  # write_sf(oneperson2,"oneperson2a.shp")
-  #Building transportation model
-  #Downloading the roads network: TODO: Make this cache 
+    sf::st_set_crs(latlong) 
   dat <- dodgr_streetnet(pts = st_coordinates(oneperson2), expand = 0.05, quiet = F)
   #Calculating the nearest road to each GPS point
   oneperson2$nearest <- st_nearest_feature(oneperson2,dat) #getting the ID of the closest feature
   # Building the road network model and setting aside an index of vertices
   nav.network <- weight_streetnet(dat, wt_profile = "motorcar")
-  verts <- dodgr_vertices (nav.network)
-  
+  verts <- dodgr_vertices (nav.network) #makes a copy of the vertices
   save(dat,nav.network,oneperson, oneperson2, verts, file = inc.data.storage)  
 }
 
 
 
-#helper function to convert paths
+#helper function to convert paths to a line
 convert.path <- function(path.obj, netwrk = nav.network, verts2 = verts){
   points1 <- verts2 [match (path.obj [[1]] [[1]], verts2$id), ]
   points1 <- points1 %>% #projecting the table as an sf and setting the coordinate system
     sf::st_as_sf(coords = c("x","y")) %>% 
-    sf::st_set_crs(4326) 
+    sf::st_set_crs(latlong) 
   path1 <- points1  %>% summarise(do_union = FALSE) %>% st_cast("LINESTRING")
   return(path1)
 }
 
 first = TRUE
 #Iterating through all of the dates
-# for(each.date in unique(oneperson2$DayMonthYear)){
-for(each.date in unique(oneperson2$DayMonthYear)[1:2]){
+for(each.date in unique(oneperson2$DayMonthYear)){
+# for(each.date in unique(oneperson2$DayMonthYear)[1:2]){
     one.subet <- oneperson2 %>%
     filter(DayMonthYear == each.date,
            Accuracy < 65) # throwing out low accuracy points to see if it has an affect
@@ -112,13 +108,13 @@ for(each.date in unique(oneperson2$DayMonthYear)[1:2]){
   }
 }# end for loop for all dates
 all.rows$length <- as.numeric(st_length(all.rows))
-all.rows2 <- all.rows %>% filter(Type == "change" & length > 500)
-all.rows.update <- all.rows2[0,]
-for (x in 1:(nrow(all.rows2))){
+all.rows.forgoogle <- all.rows %>% filter(Type == "change" & length > 500)
+all.rows.update <- all.rows.forgoogle[0,]
+for (x in 1:(nrow(all.rows.forgoogle))){
   # print(each.row)
-  orig.coord <- st_coordinates(oneperson2[oneperson2$Timestamp == all.rows2[x,]$startDT,])
-  dest.cord <-  st_coordinates(oneperson2[oneperson2$Timestamp == all.rows2[x,]$endDT,])
-  each.row <- all.rows2[x,]    
+  orig.coord <- st_coordinates(oneperson2[oneperson2$Timestamp == all.rows.forgoogle[x,]$startDT,])
+  dest.cord <-  st_coordinates(oneperson2[oneperson2$Timestamp == all.rows.forgoogle[x,]$endDT,])
+  each.row <- all.rows.forgoogle[x,]    
   each.row$Type <- "google"
   
   df <- google_directions(origin =      c(orig.coord[2],orig.coord[1]),
@@ -133,19 +129,27 @@ for (x in 1:(nrow(all.rows2))){
       st_linestring(as.matrix(df_coords[,c("lon","lat")]), dim = "XY")
       
     })
-    df_routes$geometry <- st_sfc((geom = df_routes$each),crs = 4326)
+    df_routes$geometry <- st_sfc((geom = df_routes$each),crs = latlong)
     each.row <- each.row[rep(seq_len(nrow(each.row)), each=nrow(df$routes)),]
     each.row$p1.geometry <- df_routes$geometry
   }else{ #if only one route
     pl <- decode_pl(direction_polyline(df))
     each <- st_linestring(as.matrix(pl[,c("lon","lat")]), dim = "XY")
-    each.row$p1.geometry <- st_sfc((geom = each),crs = 4326 )
+    each.row$p1.geometry <- st_sfc((geom = each),crs = latlong )
   }
   all.rows.update <- rbind(all.rows.update, each.row)
   
 }#end loop through all routers
 all.rows <- rbind(all.rows,all.rows.update)
-
+all.rows <- arrange(all.rows,startDT)
+save(all.rows,file ="onePersonRouted.RData")
+#The final data layer has everything from the transportation model with a code of "same" or change"
+#Same means it was all along the same road and did not need additional routing
+#Change means it moved to a different road between two points
+#All changes were then run through the google API if there was more than 500 meters between the roads
+#The records with a code of google duplicate those with change in most cases. Though, multiple routes, 
+#where they exist, are found in the Google version. I left both in place, but the change records can 
+#likely be removed
 
 write_sf(all.rows, "FirstRun_car_All_moved.shp")
 
