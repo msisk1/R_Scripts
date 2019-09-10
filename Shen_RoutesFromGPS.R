@@ -16,10 +16,11 @@ library(googleway)  #Interfacing with the google maps API
 latlong <- 4326   #These are codes for particular coordinate systems
 
 osm.file.cache <- "roads2.osm"
-inc.data.storage <- "AllData.RData"
-
+# inc.data.storage <- "AllData.RData"
+inc.data.storage <- "SingleTest_Houston.RData"
+out.file.name <- "singleFinal_Houston.RData"
 setwd("E:\\GISWork_2\\Shen_Paths")
-load( file = "key.RData") # You can either register for your own, or I can send this file. I can push the actual key
+load( file = "E:\\GISWork_2\\Shen_Pathskey.RData") # You can either register for your own, or I can send this file. I can push the actual key
 set_key(key = google.key) #sets the key in the googleway package
 
 if (file.exists(inc.data.storage)){ #If the data has been processed file, use this
@@ -28,10 +29,11 @@ if (file.exists(inc.data.storage)){ #If the data has been processed file, use th
 }else{ #Otherwise, process it
   load("a26da9ec19d7be28e90d1ea829b8e34a21246207e9d915e290207b8538274d20.Rdata")
   #Convert the date into a real date
-  oneperson$date <- as.POSIXct(oneperson$Timestamp,origin = "1970-01-01",tz = "GMT") #Convert the original time stamp to a datetime object
+  oneperson$date <- as.POSIXct((oneperson$Timestamp+oneperson$Offset),origin = "1970-01-01",tz = "GMT") #Convert the original time stamp to a datetime object
   oneperson$DayMonthYear <- paste(year(oneperson$date),month(oneperson$date),day(oneperson$date),sep="-") #convert once more to text for filtering
   oneperson <- oneperson %>% #Changing to this way because there are duplicate timestamps that mess up the routing. just choosing one of them is fine
-    distinct(Timestamp, .keep_all = TRUE)
+    distinct(Timestamp, .keep_all = TRUE)%>%
+    arrange(Timestamp)
   oneperson2 <- oneperson #just to keep a copy of the unaltered data
   oneperson2$X <- oneperson2$long #copying these so the original coordinates remain in the dataset
   oneperson2$Y <- oneperson2$lat
@@ -108,6 +110,7 @@ for(each.date in unique(oneperson2$DayMonthYear)){
   }
 }# end for loop for all dates
 all.rows$length <- as.numeric(st_length(all.rows))
+all.rows$ord <- 0
 all.rows.forgoogle <- all.rows %>% filter(Type == "change" & length > 500)
 all.rows.update <- all.rows.forgoogle[0,]
 for (x in 1:(nrow(all.rows.forgoogle))){
@@ -132,17 +135,19 @@ for (x in 1:(nrow(all.rows.forgoogle))){
     df_routes$geometry <- st_sfc((geom = df_routes$each),crs = latlong)
     each.row <- each.row[rep(seq_len(nrow(each.row)), each=nrow(df$routes)),]
     each.row$p1.geometry <- df_routes$geometry
+    each.row$ord <- 1:nrow(df$routes)
   }else{ #if only one route
     pl <- decode_pl(direction_polyline(df))
     each <- st_linestring(as.matrix(pl[,c("lon","lat")]), dim = "XY")
     each.row$p1.geometry <- st_sfc((geom = each),crs = latlong )
+    each.row$ord <- 1
   }
   all.rows.update <- rbind(all.rows.update, each.row)
   
 }#end loop through all routers
 all.rows <- rbind(all.rows,all.rows.update)
 all.rows <- arrange(all.rows,startDT)
-save(all.rows,file ="onePersonRouted.RData")
+save(all.rows, oneperson2,file =out.file.name)
 #The final data layer has everything from the transportation model with a code of "same" or change"
 #Same means it was all along the same road and did not need additional routing
 #Change means it moved to a different road between two points
@@ -151,6 +156,9 @@ save(all.rows,file ="onePersonRouted.RData")
 #where they exist, are found in the Google version. I left both in place, but the change records can 
 #likely be removed
 
-write_sf(all.rows, "FirstRun_car_All_moved.shp")
+#These are testing things for loading in a GIS program
+write_sf(all.rows, "Single_Out_Houston_4.shp")
+write_sf(oneperson2, "single_out_Houston_points4.shp")
 
+# write.csv(try2$snappedPoints,"snappy.csv")
 
