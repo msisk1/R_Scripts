@@ -69,10 +69,29 @@ if (!file.exists("chgis_dem_low.tif")){
 
 proj4string(dem) #verify that this is non-NA
 
+#ADDING OPTIONAL CHECK FOR CORRECT DATA
+
+
 #new data processing section
-master.file <- read.csv("paths_2019-11-19/Ming.csv", stringsAsFactors = F)
+master.file <- read.csv("paths_2019-11-19/MING ROUTES.csv", stringsAsFactors = F)
 master.file <- master.file[!is.na(master.file$N),]
 master.file <- master.file[!is.na(master.file$N.1),]
+#ADDING OPTIONAL CHECK FOR CORRECT DATA
+if (TRUE){
+  library(tidyverse)
+  templat <- if_else(master.file$N > 90, true = master.file$E,false = master.file$N)
+  templon <- if_else(master.file$N > 90, true = master.file$N,false = master.file$E)  
+  master.file$N <- templat
+  master.file$E <- templon
+  
+  templat <- if_else(master.file$N.1 > 90, true = master.file$E.1,false = master.file$N.1)
+  templon <- if_else(master.file$N.1 > 90, true = master.file$N.1,false = master.file$E.1)  
+  master.file$N.1 <- templat
+  master.file$E.1 <- templon
+  
+}
+
+
 subset.file <- master.file[master.file$Identification.Number ==1,]
 first <- T
 # for (each.id in unique(master.file$Identification.Number)){
