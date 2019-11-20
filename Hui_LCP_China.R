@@ -70,7 +70,7 @@ if (!file.exists("chgis_dem_low.tif")){
 proj4string(dem) #verify that this is non-NA
 
 #new data processing section
-master.file <- read.csv("paths_2019-04-23/Han Data - Data Prepared for Matt.csv", stringsAsFactors = F)
+master.file <- read.csv("paths_2019-11-19/Ming.csv", stringsAsFactors = F)
 master.file <- master.file[!is.na(master.file$N),]
 master.file <- master.file[!is.na(master.file$N.1),]
 subset.file <- master.file[master.file$Identification.Number ==1,]
@@ -109,7 +109,11 @@ for (each.id in row.names(master.file)){
     all <-all + each.sldf
   }
 }
+writeOGR(dsn=".", layer = "Han_2019_04_30.shp",obj=all, driver = "ESRI Shapefile" )
 plot(all)
+save(all,file="Han_2019_04_30.rData")
+
+
 
 #create points out of each line (old way was line x to line x+1)
 subset.origins <- subset.file
@@ -211,7 +215,6 @@ for (in.file in in.files){
     
   }#end exterior for loop
   writeOGR(dsn=out.path, obj = all.in.one, layer = paste(tools::file_path_sans_ext(in.file),"_AllPaths",sep=""),driver = "ESRI Shapefile" ,overwrite_layer = T)
-  
   
     
 }# end of the loop through files
