@@ -20,7 +20,7 @@ osm.file.cache <- "roads2.osm"
 inc.data.storage <- "SingleTest_Houston.RData"
 out.file.name <- "singleFinal_Houston.RData"
 setwd("E:\\GISWork_2\\Shen_Paths")
-load( file = "E:\\GISWork_2\\Shen_Pathskey.RData") # You can either register for your own, or I can send this file. I can push the actual key
+load( file = "E:\\GISWork_2\\Shen_Paths\\key.RData") # You can either register for your own, or I can send this file. I can push the actual key
 set_key(key = google.key) #sets the key in the googleway package
 
 if (file.exists(inc.data.storage)){ #If the data has been processed file, use this

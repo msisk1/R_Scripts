@@ -6,18 +6,20 @@ library(shiny)
 # setwd("/home/matthew/GIT/R_Scripts/ShinyApps/HUI_ChinaPathsApp_v2") #Linux machine
 latlong <- "+init=epsg:4326" #This is the espg code for the WGS 1984 geographic projection
 #loading Data
-process.rawfiles <-F
+process.rawfiles <-T
 
 
 if (process.rawfiles){
   china.outline<-getData("GADM",country="China",level=0)
   china.outline<- gSimplify(china.outline,.1, topologyPreserve=FALSE)
   
-  master.file <- read.csv("data/Han Data - Data Prepared for Matt.csv", stringsAsFactors = F)
-  master.file <- master.file[!is.na(master.file$N),]
-  master.file <- master.file[!is.na(master.file$N.1),]
+  # master.file <- read.csv("data/Han Data - Data Prepared for Matt.csv", stringsAsFactors = F)
+  # master.file <- master.file[!is.na(master.file$N),]
+  # master.file <- master.file[!is.na(master.file$N.1),]
   
-  load("data/Han_2019_04_30.rData")
+  load("data/MING_points.rData")
+  
+  load("data/MING ROUTES_2019-11-19.rData")
   all.lines.df <- all
   all.lines.df <-  spTransform(all.lines.df, CRS(latlong))
   
@@ -31,9 +33,9 @@ if (process.rawfiles){
   
   list.battles <- unique(master.file$Battle.Name)
     
-  save(dest.points,origin.points,all.lines.df, china.outline, list.battles, file="allData.Rda")
+  save(dest.points,origin.points,all.lines.df, china.outline, list.battles, file="allData-ming.Rda")
 }else{
-  load("allData.Rda")
+  load("allData-ming.Rda")
 }#end ifelse process.rawfiles
 
 

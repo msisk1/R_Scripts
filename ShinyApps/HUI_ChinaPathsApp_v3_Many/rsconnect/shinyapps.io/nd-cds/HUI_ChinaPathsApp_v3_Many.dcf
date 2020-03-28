@@ -1,0 +1,13 @@
+name: HUI_ChinaPathsApp_v3_Many
+title: HUI_ChinaPathsApp_v3_Many
+username:
+account: nd-cds
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 1530115
+bundleId: 2659587
+url: https://nd-cds.shinyapps.io/HUI_ChinaPathsApp_v3_Many/
+when: 1576085639.84742
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: data

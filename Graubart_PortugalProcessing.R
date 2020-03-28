@@ -44,6 +44,12 @@ input.table$Title[input.table$Title  == "Mastre"] <-"Maestre"
 input.table$Title[input.table$Title  == "Rabi "] <-"Rabi"
 
 
+
+input.table %>%
+  group_by(collacion) %>%
+  summarise(tot  = n(),
+            Status01 = sum(religion == "judio"& Title %in% c("Don","Dona")))
+
 #Making New Tables
 # 1: Jewish men and women called "don" or "Dona": Status titles
 input.table$Status01 <- ifelse((input.table$religion == "judio" & input.table$Title %in% c("Don","Dona")),1,0)
@@ -62,7 +68,9 @@ input.table$MusAljama04  <- ifelse((input.table$religion == "moro" & input.table
 old.data <- read.csv("Old_Data.csv",stringsAsFactors = F)
 names(old.data) <- c( "id","Year","Title","Name","Name_2","religion","occup","collacion","specifics","notes","Number","Moro","coverso","judio")
 
-old.data$JewPre1483  <- ifelse((old.data$religion ==  "judio" & old.data$Year <= 1493),1,0)
+# old.data$JewPre1483  <- ifelse((old.data$religion ==  "judio" & old.data$Year <= 1493),1,0)
+#2020-01-14: Revising to include all jews and muslims before 1495
+old.data$JewPre1483  <- ifelse((old.data$religion ==  "judio"),1,0)
 
 # 6 Muslims before 1483, both indicating density
 old.data$MusPre1483  <- ifelse((old.data$religion ==  "moro" & old.data$Year <= 1493),1,0)
@@ -71,6 +79,14 @@ old.data$MusPre1483  <- ifelse((old.data$religion ==  "moro" & old.data$Year <= 
 old.data$MusPost1483  <- ifelse((old.data$religion ==  "moro" & old.data$Year > 1493),1,0)
 
 
+
+oop <- old.data %>%
+  group_by(collacion) %>%
+  summarise(tot  = n(),
+            JewPre1483 =  sum(religion == "judio"),
+            MusPre1483 =  sum(religion == "moro" & Year <= 1493),
+            MusPost1483 = sum(religion == "moro" & Year > 1493),
+            MusTotal = sum(religion == "moro"))
 
 
 
@@ -86,5 +102,83 @@ temp1 <- merge(temp1,temp2, by = "Number", all = T)
 
 Vecinos.spdf <- readOGR(".", layer = "Vecinos_base")
 hhop <- merge(Vecinos.spdf, temp1, by = "Number", all.x = T)
-writeOGR(dsn=".", obj = hhop, layer="2018_Rebuild_Vecinos", driver = "ESRI Shapefile")
+library(sf)
+out.poly <- st_as_sf(hhop)
+out.point <- st_centroid(out.poly)
+
+st_write(out.poly, "2018_Rebuild_Vecinos.shp", delete_layer = T)
+st_write(out.point, "2018_Rebuild_Vecinos_Points.shp", delete_layer = T)
+
+writeOGR(dsn=".", obj = hhop, layer="2018_Rebuild_Vecinos", driver = "ESRI Shapefile", overwrite_layer = T )
+
+
+
+#2020 Rebuild
+rm(list=ls(all=TRUE)) # clear memory
+library(tidyverse)
+library(sf)
+setwd("E:\\GISWork_2\\Graubart_Lima\\Portugal\\2018_Rebuild") 
+
+
+
+name.to.number.table <- read.csv("Names_To_Numbers.csv",stringsAsFactors=F)
+raw.2020 <- read_csv("Vecinos for Mat 2020.csv")
+raw.2020 <- raw.2020 %>%
+  mutate(Title = recode(Title,
+              "dona" = "Dona",
+              "Doña" = "Dona",
+              "Mastre" = "Maestre",
+              "don" = "Don"),
+         collacion= recode(collacion,
+                           "San bartolome" = "San Bartolome Viejo",
+                           "San Ildefonso ." = "San Ildefonso",
+                           "San isidoro"= "San Isidoro",
+                           "San pedro" = "San Pedro",
+                           "San Salvador"= "Salvadoe",
+                           "San Bartolome" = "San Bartolome Viejo" ),
+         religion = recode(religion,
+                           "Moro" = "moro",
+                           "Judio" = "judio"))
+
+
+
+
+# unique(raw.2020$Title)
+# unique(raw.2020$collacion)
+# unique(raw.2020$religion)
+# unique(raw.2020$occup_class)
+
+
+last.year <- 1483
+sumTable.2020 <- raw.2020 %>%
+  group_by(collacion) %>%
+  summarise(tot  = n(),
+            JewPre1483 =  sum(religion == "judio"),
+            MusPre1483 =  sum(religion == "moro" & Year <= last.year),
+            MusPost1483 = sum(religion == "moro" & Year > last.year),
+            MusTotal = sum(religion == "moro"),
+            Tex_pr1483 = sum(occup_class %in% c("textiles","tailor")& Year <= last.year),
+            Mas_pr1483 = sum(occup_class %in% c("mason") & Year <= last.year),
+            boc_pr1483 = sum(occup_class %in% c("borceguinero") & Year <= last.year),
+            mT_pr1483 = sum(religion == "moro" & Year <=last.year & !is.na(Title)),
+            muT_pr1483 = sum(religion == "moro" & Year <=last.year & is.na(Title)))
+
+
+name.to.number.table <- rename(name.to.number.table, "collacion" = "Name")
+
+sumTable.2020 <- left_join(x = sumTable.2020, y=name.to.number.table, by = "collacion")
+
+
+Vecinos.sf <- st_read("Vecinos_base.shp")
+out.poly <- left_join(x = Vecinos.sf, y = sumTable.2020, by = "Number")
+out.point <- st_centroid(out.poly)
+
+
+st_write(out.poly, "2020_Rebuild_Vecinos.shp", delete_layer = T)
+st_write(out.point, "2020_Rebuild_Vecinos_Points.shp", delete_layer = T)
+
+
+
+# masons, borceguineros, and textiles (and here include tailors in textiles, it looks like I kept them separate).
+
 

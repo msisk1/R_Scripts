@@ -1,7 +1,16 @@
 rm(list=ls())
+library("tidyverse")
+library("lubridate")
+library("googleway")
+
 setwd("E:\\GISWork_2\\Shen_Paths")
 
+
+
 load("oneisallyouneed.RData")
+
+oneperson <- person
+
 
 oneperson.subset <- oneperson%>%
   filter(Timestamp>=1530410351 & Timestamp <= 1530411971)
@@ -261,6 +270,6 @@ library(cowplot)
 
 plot_grid(ascot,time.plot, labels = c("A","B"),label_size = 12, align = "V",sing.leg, rel_heights = c(1,.1))
 
-write_sf (all.google.moved2, "testing_drop.shp")
+
 
 
