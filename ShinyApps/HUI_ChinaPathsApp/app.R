@@ -3,13 +3,14 @@
 library(rgdal)
 library(leaflet)
 library(shiny)
-# setwd("/home/matthew/Documents/HUI/HUI_ChinaPathsApp") #Linux machine
+# setwd("/home/matthew/GIT/R_Scripts/ShinyApps/HUI_ChinaPathsApp") #Linux machine
 latlong <- "+init=epsg:4326" #This is the espg code for the WGS 1984 geographic projection
 #loading Data
 process.rawfiles <-F
 
 
 if (process.rawfiles){
+  library(raster)
   china.outline<-getData("GADM",country="China",level=0)
   china.outline<- gSimplify(china.outline,.1, topologyPreserve=FALSE)
   list.files <- list.files(path = "data", pattern = ".csv$", full.names=TRUE)
@@ -70,8 +71,11 @@ server <- function(input, output, session) {
   
   
   lines.layer <- eventReactive(c(input$time), {
+    print(paste("lines: ", input$time,list.dynasties))
     index <- match(input$time,list.dynasties)
-    return(all.lines.df[[index]])
+    print(paste("lines: ", input$time,list.dynasties, index))
+    
+        return(all.lines.df[[index]])
     
     
   }, ignoreNULL = FALSE)#end points.orig
@@ -94,7 +98,7 @@ server <- function(input, output, session) {
       clearGroup("lines")%>%
       clearControls() %>%
       addCircleMarkers(data = points.layer(), popup = ~Location, color = ~pal(Desc), radius = 5)%>%
-      # addPolylines(data = lines.layer(), popup = ~Name, group = "lines", color = ~pal(Name),opacity = 1)%>%
+      addPolylines(data = lines.layer(), popup = ~Name, group = "lines", color = ~pal(Name),opacity = 1)%>%
       addLegend("bottomright", pal = pal, values = lines.layer()$Name,
                 title = filter.text(),
                 opacity = 1

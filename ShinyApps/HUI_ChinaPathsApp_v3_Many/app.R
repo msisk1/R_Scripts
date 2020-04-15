@@ -10,75 +10,81 @@ process.rawfiles <-F
 
 
 if (process.rawfiles){
-  setwd("E:\\GIT_Checkouts\\R_Scripts\\ShinyApps\\HUI_ChinaPathsApp_v3_Many")
+  setwd("/home/matthew/GIT/R_Scripts/ShinyApps/HUI_ChinaPathsApp_v3_Many")
   library(raster)
   library(rgeos)
   china.outline<-getData("GADM",country="China",level=0)
   china.outline<- gSimplify(china.outline,.1, topologyPreserve=FALSE)
-  
-  # master.file <- read.csv("data/Han Data - Data Prepared for Matt.csv", stringsAsFactors = F)
-  # master.file <- master.file[!is.na(master.file$N),]
-  # master.file <- master.file[!is.na(master.file$N.1),]
-  
-  # load("data/MING_points.rData")
-  
-  load("data/MING ROUTES_2019-11-19.rData")
-  names(all)[names(all) == "Battle.name"] <- "Campaign.name"
-  ming <- all
-  ming$dynasty <- "Ming"
-  ming$X <- NULL
-  ming$Campagin.Begin.Year <- 0
-  ming$Campagin.End.Year   <- 0
-ming <- ming[,c('Beginning.Year','End.Year','Campagin.Begin.Year',"Campagin.End.Year" ,"Initiator","Target"  , "Campaign.name",
-                "Battle.Number"  ,                           
-                "Starting.point.current.name..add.old.name.",
-                "E",
-                "N" ,                                        
-                
-                "Ending.point.current.name..old.name."  ,    
-                "E.1"  ,  "N.1",
-                                                   
-                "Main.campaign..yes.1..no.0.",
-                "Multiple.routes"    ,                       
-                "Enemies..yes.1..no.0..",
-                "Tri..topographic.ruggedness.index."    ,    
-                "Distance",
-                "Interior..yes..1..no.0."  ,                 
-                "Notes.comments",
-                "Army.size.initiator" ,                      
-                "Army.size.target",
-                "Army.Casualties.Initiator"  ,               
-                "Army.Casualties.Target",
-                "Result..win.1..lose.0."  ,                  
-                "dynasty" 
-)]
-  
-  load("data/Sui Routes_Fin_2019-11-19.rData")
-  sui <- all
-  sui$dynasty <- "Sui"
-  
-  load("data/Tang routes_Final_2019-11-19.rData")
-  names(all)[names(all) == "Battle.name"] <- "Campaign.name"
-  tang <- all
-  tang$dynasty <- "Tang"
-  
-  load("data/Song-Yuan War Data_2019-11-19.rData")
-  song <- all
-  song$dynasty <- "Song-Yuan"
-  song$X <- NULL
-  song$X.1 <- NULL
-  song <- song[,c("War.Beginning.Year", "War.End.Year", "Campaign.Beginning.Year", "Campaign.End.Year", "Initiator", "Target","Campaign.name","Identification.Number","Starting.point.current.name..add.old.name.","E","N","Ending.point.current.name..old.name.", "E.1", "N.1","Main.campaign..yes.1..no.0.","Multiple.routes","Enemies", "War.Name","Distance","Interior..yes..1..no.0.","Notes.comments", "Initiator.s.Army.Size","Target.s.Army.Size","Initiator.s.Battle.Deaths","Target.s.Battle.Deaths","Result..win.1..lose.0.","dynasty")]
-  
-  
-  names(ming) <- names(sui)
-  names(tang) <-names(sui)
-  names(song) <- names(sui)
-  
-  all <- rbind(ming, sui)
-  all <- rbind(all, tang)
-  all <- rbind(all, song)
-  
-    
+#   
+#   
+#   load("data/MING ROUTES_2019-11-19.rData")
+#   names(all)[names(all) == "Battle.name"] <- "Campaign.name"
+#   ming <- all
+#   ming$dynasty <- "Ming"
+#   ming$X <- NULL
+#     ming$Campagin.Begin.Year <- 0
+#     ming$Campagin.End.Year   <- 0
+# ming <- ming[,c('Beginning.Year','End.Year','Campagin.Begin.Year',"Campagin.End.Year" ,"Initiator","Target"  , "Campaign.name",
+#                 "Battle.Number"  ,                           
+#                 "Starting.point.current.name..add.old.name.",
+#                 "E",
+#                 "N" ,                                        
+#                 
+#                 "Ending.point.current.name..old.name."  ,    
+#                 "E.1"  ,  "N.1",
+#                                                    
+#                 "Main.campaign..yes.1..no.0.",
+#                 "Multiple.routes"    ,                       
+#                 "Enemies..yes.1..no.0..",
+#                 "Tri..topographic.ruggedness.index."    ,    
+#                 "Distance",
+#                 "Interior..yes..1..no.0."  ,                 
+#                 "Notes.comments",
+#                 "Army.size.initiator" ,                      
+#                 "Army.size.target",
+#                 "Army.Casualties.Initiator"  ,               
+#                 "Army.Casualties.Target",
+#                 "Result..win.1..lose.0."  ,                  
+#                 "dynasty" 
+# )]
+#   
+#   load("data/Sui Routes_Fin_2019-11-19.rData")
+#   sui <- all
+#   sui$dynasty <- "Sui"
+#   
+#   load("data/Tang routes_Final_2019-11-19.rData")
+#   names(all)[names(all) == "Battle.name"] <- "Campaign.name"
+#   tang <- all
+#   tang$dynasty <- "Tang"
+#   
+#   load("data/Song-Yuan War Data_2019-11-19.rData")
+#   song <- all
+#   song$dynasty <- "Song-Yuan"
+#   song$X <- NULL
+#   song$X.1 <- NULL
+#   song <- song[,c("War.Beginning.Year", "War.End.Year", "Campaign.Beginning.Year", "Campaign.End.Year", "Initiator", "Target","Campaign.name","Identification.Number","Starting.point.current.name..add.old.name.","E","N","Ending.point.current.name..old.name.", "E.1", "N.1","Main.campaign..yes.1..no.0.","Multiple.routes","Enemies", "War.Name","Distance","Interior..yes..1..no.0.","Notes.comments", "Initiator.s.Army.Size","Target.s.Army.Size","Initiator.s.Battle.Deaths","Target.s.Battle.Deaths","Result..win.1..lose.0.","dynasty")]
+#   
+#   #New 2020-03-31
+#   
+#   load("data/Han Routes_Final_2020-03-28.rData")
+#   han <- all
+#   han$dynasty <- "Han"
+#   
+#   
+#   
+#   
+#   
+#   
+#   names(ming) <- names(sui)
+#   names(tang) <-names(sui)
+#   names(song) <- names(sui)
+#   
+#   all <- rbind(ming, sui)
+#   all <- rbind(all, tang)
+#   all <- rbind(all, song)
+#   
+  load("data/allData2020-03-28.rData")
+  all <- totally.all
   all.lines.df <- all
   all.lines.df <-  spTransform(all.lines.df, CRS(latlong))
   
@@ -92,10 +98,10 @@ ming <- ming[,c('Beginning.Year','End.Year','Campagin.Begin.Year',"Campagin.End.
   
   list.battles <- unique(all$Campaign.name)
   list.dynasties <- unique(all$dynasty)
-  save(dest.points,origin.points,all.lines.df, china.outline, list.battles, list.dynasties, file="allData.Rda")
+  save(dest.points,origin.points,all.lines.df, china.outline, list.battles, list.dynasties, file="allDataProcced.Rda")
 }else{
-  load("allData.Rda")
-}#end ifelse process.rawfiles
+  load("allDataProcced.Rda")
+  }#end ifelse process.rawfiles
 
 
 origin.points$popupw <- paste(sep ="", "<b>",origin.points$Campaign.name,"</b><br/>",

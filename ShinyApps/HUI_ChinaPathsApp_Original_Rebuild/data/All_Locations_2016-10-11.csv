@@ -1,0 +1,56 @@
+Location,Order,N,E,Desc,Final
+Xian,1,34.3416,108.9398,Route 1 (Toward the NW/Xinjiang),1
+Tianshui,2,34.5809,105.725,Route 1 (Toward the NW/Xinjiang),1
+Longxi,3,35.0039,104.635,Route 1 (Toward the NW/Xinjiang),1
+Lanzhou,4,36.0611,103.8343,Route 1 (Toward the NW/Xinjiang),1
+Langaoxia,5,36.3327,103.9474,Route 1 (Toward the NW/Xinjiang),1
+Zhangye,6,38.9259,100.44979,Route 1 (Toward the NW/Xinjiang),1
+Jiayu Guan,7,39.7731,98.2892,Route 1 (Toward the NW/Xinjiang),1
+Dunhuang,8,40.1421,94.662,Route 1 (Toward the NW/Xinjiang),1
+Yumen Guan,9,40.352,93.8649,Route 1 (Toward the NW/Xinjiang),1
+Hami,10,42.8184,93.5152,Route 1 (Toward the NW/Xinjiang),1
+Karasahr,11,42.0623,86.571,Route 1 (Toward the NW/Xinjiang),1
+Kuqa,12,41.7179,82.962,Route 1 (Toward the NW/Xinjiang),1
+Aksu,13,41.1675,80.2634,Route 1 (Toward the NW/Xinjiang),1
+Kashgar,14,39.4677,75.9938,Route 1 (Toward the NW/Xinjiang),1
+Hami,1,42.8184,93.5152,Route 1.1 (Toward the NW/Xinjiang 1.1),1
+Turpan,2,42.9514,89.1897,Route 1.1 (Toward the NW/Xinjiang 1.1),1
+Urumqi,3,43.8256,87.6168,Route 1.1 (Toward the NW/Xinjiang 1.1),1
+Beijing,1,39.9042,116.4074,Route 2 (Toward Mongolia),1
+Shangzhuangbao,2,40.767,114.7406,Route 2 (Toward Mongolia),1
+Suweishan,3,41.1586,114.7201,Route 2 (Toward Mongolia),1
+Hohhot,4,40.8426,111.7492,Route 2 (Toward Mongolia),1
+Ulaanbaatar (Mongolia),5,47.8864,106.9057,Route 2 (Toward Mongolia),1
+Ulan-ude (Russia),6,51.8239,107.6073,Route 2 (Toward Mongolia),1
+Chengdu,1,30.5728,104.0668,Route 3 (Toward Tibet 1),1
+Kangding,2,29.9984,101.0668,Route 3 (Toward Tibet 1),1
+Litang,3,29.996,100.2698,Route 3 (Toward Tibet 1),1
+Batang,4,30.0047,99.1107,Route 3 (Toward Tibet 1),1
+Lhari,5,30.6408,93.2325,Route 3 (Toward Tibet 1),1
+Lhasa,6,29.6525,91.1721,Route 3 (Toward Tibet 1),1
+Shigatse,7,29.2669,88.8806,Route 3 (Toward Tibet 1),1
+Xining,1,36.6171,101.7782,Route 4 (Toward Tibet 2),1
+Golmud,2,36.4064,94.9285,Route 4 (Toward Tibet 2),1
+Lhasa,3,29.6525,91.1721,Route 4 (Toward Tibet 2),1
+Beijing,1,39.9042,116.4074,Route 5 (Toward the NE/Manchuria and Korea),1
+Shanhai Guan,2,39.9788,119.7758,Route 5 (Toward the NE/Manchuria and Korea),1
+Yingzhou,3,41.5263,120.4042,Route 5 (Toward the NE/Manchuria and Korea),1
+Bozhuokou,4,41.5331,121.2391,Route 5 (Toward the NE/Manchuria and Korea),1
+Liaoze,5,41.5947,121.7987,Route 5 (Toward the NE/Manchuria and Korea),1
+Xincheng,6,40.85,122.75,Route 5 (Toward the NE/Manchuria and Korea),1
+Shenyang,7,41.8,123.4,Route 5 (Toward the NE/Manchuria and Korea),1
+Yincheng,8,42.2234,123.729,Route 5 (Toward the NE/Manchuria and Korea),1
+Momi,9,41.9226,124.098,Route 5 (Toward the NE/Manchuria and Korea),1
+Nansu,10,41.7343,125.04,Route 5 (Toward the NE/Manchuria and Korea),1
+Wanducheng,11,41.1253,126.194,Route 5 (Toward the NE/Manchuria and Korea),1
+Pyonyang,12,39.0392,125.7625,Route 5 (Toward the NE/Manchuria and Korea),1
+Seoul,13,37.5665,126.978,Route 5 (Toward the NE/Manchuria and Korea),1
+Guangzhou,1,23.1291,113.2644,Route 6 (Toward Yungui),1
+Nanning,2,22.817,108.3665,Route 6 (Toward Yungui),1
+Guilin,3,25.2345,110.18,Route 6 (Toward Yungui),1
+Guiyang,4,26.6477,106.6302,Route 6 (Toward Yungui),1
+Kunming,5,24.8801,102.8329,Route 6 (Toward Yungui),1
+Dali,6,25.6065,100.2676,Route 6 (Toward Yungui),1
+Guangzhou,1,23.1291,113.2644,Route 7 (Toward the SE/Vietnam),1
+Nanning,2,22.817,108.3665,Route 7 (Toward the SE/Vietnam),1
+Hanoi (Vietnam),3,21.0278,105.8342,Route 7 (Toward the SE/Vietnam),1

@@ -1,0 +1,13 @@
+name: HUI_ChinaPathsApp_Original_Rebuild
+title: HUI_ChinaPathsApp_Original_Rebuild
+username:
+account: nd-cds
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 2069740
+bundleId: 2978112
+url: https://nd-cds.shinyapps.io/HUI_ChinaPathsApp_Original_Rebuild/
+when: 1586214215.98112
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: GADM_2.8_CHN_adm0.rds|gadm36_CHN_0_sp.rds|data/All_Locations_2016-10-11.csv|data/All_ROutes_Merged.dbf|data/All_ROutes_Merged.prj|data/All_ROutes_Merged.shp|data/All_ROutes_Merged.shx

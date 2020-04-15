@@ -5,9 +5,9 @@ account: nd-cds
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 1530115
-bundleId: 2659587
+bundleId: 2980167
 url: https://nd-cds.shinyapps.io/HUI_ChinaPathsApp_v3_Many/
-when: 1576085639.84742
+when: 1586255879.14455
 asMultiple: FALSE
 asStatic: FALSE
-ignoredFiles: data
+ignoredFiles: GADM_2.8_CHN_adm0.rds|gadm36_CHN_0_sp.rds|data/allData2020-03-28.rData
