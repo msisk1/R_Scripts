@@ -9,7 +9,9 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Packages
+# Packages
+
+Here, I am using sf for spatial data, rnatural earth to get country borders in a systematic way and gganimate and viridis for some fancy plotting
 
 ```{r cars}
 library(tidytuesdayR)
@@ -20,7 +22,7 @@ library(gganimate)
 library(viridis)
 ```
 
-## loading data
+# loading data
 
 ```{r pressure}
 tt <- tt_load("2021-04-20")
@@ -29,11 +31,11 @@ netflix <- tt$netflix_titles
 countries <- ne_countries(returnclass = "sf", scale = "medium") %>%
   select(admin, continent, pop_est, gdp_md_est, economy, income_grp )
 
-
 ```
 
 ## making a list of countries
-In this case, some shows have multiple countries, so this splits them so each gets counted
+In this case, some shows have multiple countries of production, so I am using seperate_rows to split them so each gets counted
+
 ```{r}
 nf.loc <- netflix %>%
   separate_rows(country, sep = ", ")%>%
@@ -41,12 +43,13 @@ nf.loc <- netflix %>%
   summarise(n = n())
 ```
 
-Testing to see if there are ones not listed in the administrative countries
+Using an anti_join to test if there are ones woth names not listed in the Natural Earth countries
 
 ```{r}
 anti_join(nf.loc, countries, by = c("country" = "admin"))
 ```
-Yep, there are a bunch. Recoding them so they match the names in the NE dataset
+
+There are a few. Some are typos, some are alternate names and some are older names. Recoding them so they match the names in the NE dataset
 
 ```{r}
 nf.loc <- netflix %>%
@@ -68,7 +71,9 @@ nf.loc <- netflix %>%
   group_by(country)%>%
   summarise(n = n())
 ```
-Now to join them together so we have the spatial information
+
+Now to join them together so we have the spatial information and create a ggplot
+
 ```{r}
 full.list.map <- left_join(countries, nf.loc, by = c("admin" = "country"))
 ggplot()+
@@ -79,7 +84,9 @@ ggplot()+
   theme_bw()
 ```
 
-## scale it to population
+# scale it to population
+Well, that is ok, but are we seeing a pattern where the larger population countries are producing higher numbers? Often, it is better to scale these measures to the total population. Here, I do it to number of entries per 100,000 people
+
 
 ```{r}
 full.list.map <- left_join(countries, nf.loc, by = c("admin" = "country"))
@@ -91,17 +98,19 @@ ggplot()+
        fill = "Total per 100k population") +
   theme_bw()
 ```
+
 What is going on here? Why is everything the same color? Where is something with 120 shows per 100,000 residents?
 
 ```{r}
-full.list.map %>% slice(which.max(titles.per100k))
+full.list.map %>% 
+  st_set_geometry(NULL) %>%  
+  slice(which.max(titles.per100k)) 
 ```
-Ah, there is a movie in the vatican, which only has 832 people, so it is skewed (and too small to see on the map). Let's redo without the Vatican
+
+There is a movie in the Vatican, which only has 832 people, so it is skewed (and too small to see on the map). Let's redo without that entry
 
 
 ```{r}
-full.list.map <- left_join(countries, nf.loc, by = c("admin" = "country"))
-full.list.map <- full.list.map %>% mutate(titles.per100k = 100000 * n/pop_est)
 ggplot()+
   geom_sf(data = full.list.map %>% filter(admin != "Vatican"), mapping = aes(fill = titles.per100k), size = .1)+
   scale_fill_viridis(na.value="white")+
@@ -112,7 +121,10 @@ ggplot()+
 
 
 
-## What about country demographics
+# What about the counties economy?
+
+Here is a quick table showing the different economic categories from the Natural Earth dataset
+
 ```{r}
 full.list.map%>%
   st_set_geometry(NULL)%>%
@@ -120,6 +132,9 @@ full.list.map%>%
   summarise(tot = sum(n, na.rm = T))
 
 ```
+
+And the income groups
+
 ```{r}
 
 full.list.map%>%
@@ -128,8 +143,7 @@ full.list.map%>%
   summarise(tot = sum(n, na.rm = T))
 ```
 
-
-Not all of the shows/movies are from high income areas, but most are. The same is 
+And the same thing by continent 
 
 ```{r}
 
@@ -138,10 +152,12 @@ full.list.map%>%
   group_by(continent)%>%
   summarise(tot = sum(n, na.rm = T))
 ```
-Very few from Africa or South America!
 
-## Over time
-OK, lets get super fancy and create that first map over time.
+Very few Netflix movies are from Africa or South America!
+
+# Over time
+
+OK, lets get super fancy and run that first map over time.
 ```{r}
 nf.loc.time <- netflix %>%
   separate_rows(country, sep = ", ")%>%
@@ -165,6 +181,7 @@ nf.loc.time <- netflix %>%
 full.list.map.time <- left_join(countries, nf.loc.time, by = c("admin" = "country"))
 
 p.tot  <- ggplot()+
+  geom_sf(data = countries, fill = NA)+
   geom_sf(data = full.list.map.time %>% filter(!is.na(release_year)), mapping = aes(fill = n))+
   scale_fill_viridis(na.value="white")+
   labs(title = "Countries where Netflix movies/shows are produced",
