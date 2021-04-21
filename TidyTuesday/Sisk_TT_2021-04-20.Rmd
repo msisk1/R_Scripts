@@ -1,0 +1,181 @@
+---
+title: "TidyTuesdayNetflix"
+author: "Matthew L. Sisk"
+date: "4/20/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Packages
+
+```{r cars}
+library(tidytuesdayR)
+library(tidyverse)
+library(sf)
+library(rnaturalearth)
+library(gganimate)
+library(viridis)
+```
+
+## loading data
+
+```{r pressure}
+tt <- tt_load("2021-04-20")
+netflix <- tt$netflix_titles
+
+countries <- ne_countries(returnclass = "sf", scale = "medium") %>%
+  select(admin, continent, pop_est, gdp_md_est, economy, income_grp )
+
+
+```
+
+## making a list of countries
+In this case, some shows have multiple countries, so this splits them so each gets counted
+```{r}
+nf.loc <- netflix %>%
+  separate_rows(country, sep = ", ")%>%
+  group_by(country)%>%
+  summarise(n = n())
+```
+
+Testing to see if there are ones not listed in the administrative countries
+
+```{r}
+anti_join(nf.loc, countries, by = c("country" = "admin"))
+```
+Yep, there are a bunch. Recoding them so they match the names in the NE dataset
+
+```{r}
+nf.loc <- netflix %>%
+  separate_rows(country, sep = ", ")%>%
+  mutate(country = recode(country,
+                             "Bahamas" = "The Bahamas",
+                             "Cambodia," = "Cambodia" ,
+                             "East Germany" = "Germany" ,
+                             "Hong Kong" = "Hong Kong S.A.R.", 
+                             "Poland," = "Poland",
+                             "Serbia" = "Republic of Serbia",
+                             "Soviet Union" = "Russia",
+                             "United Kingdom," = "United Kingdom",
+                          "United States" = "United States of America",
+                          "United States," = "United States of America",
+                          "Vatican City" = "Vatican"  ,
+                          "West Germany" = "Germany"  ))%>%
+  filter(!is.na(country))%>%
+  group_by(country)%>%
+  summarise(n = n())
+```
+Now to join them together so we have the spatial information
+```{r}
+full.list.map <- left_join(countries, nf.loc, by = c("admin" = "country"))
+ggplot()+
+  geom_sf(data = full.list.map, mapping = aes(fill = n))+
+  scale_fill_viridis(na.value="white")+
+  labs(title = "Countries where Netflix movies/shows are produced",
+       fill = "Total")+
+  theme_bw()
+```
+
+## scale it to population
+
+```{r}
+full.list.map <- left_join(countries, nf.loc, by = c("admin" = "country"))
+full.list.map <- full.list.map %>% mutate(titles.per100k = 100000 * n/pop_est)
+ggplot()+
+  geom_sf(data = full.list.map, mapping = aes(fill = titles.per100k))+
+  scale_fill_viridis(na.value="white")+
+  labs(title = "Countries where Netflix movies/shows are produced",
+       fill = "Total per 100k population") +
+  theme_bw()
+```
+What is going on here? Why is everything the same color? Where is something with 120 shows per 100,000 residents?
+
+```{r}
+full.list.map %>% slice(which.max(titles.per100k))
+```
+Ah, there is a movie in the vatican, which only has 832 people, so it is skewed (and too small to see on the map). Let's redo without the Vatican
+
+
+```{r}
+full.list.map <- left_join(countries, nf.loc, by = c("admin" = "country"))
+full.list.map <- full.list.map %>% mutate(titles.per100k = 100000 * n/pop_est)
+ggplot()+
+  geom_sf(data = full.list.map %>% filter(admin != "Vatican"), mapping = aes(fill = titles.per100k), size = .1)+
+  scale_fill_viridis(na.value="white")+
+  labs(title = "Countries where Netflix movies/shows are produced",
+       fill = "Total per 100k population") +
+  theme_bw()
+```
+
+
+
+## What about country demographics
+```{r}
+full.list.map%>%
+  st_set_geometry(NULL)%>%
+  group_by(economy)%>%
+  summarise(tot = sum(n, na.rm = T))
+
+```
+```{r}
+
+full.list.map%>%
+  st_set_geometry(NULL)%>%
+  group_by(income_grp)%>%
+  summarise(tot = sum(n, na.rm = T))
+```
+
+
+Not all of the shows/movies are from high income areas, but most are. The same is 
+
+```{r}
+
+full.list.map%>%
+  st_set_geometry(NULL)%>%
+  group_by(continent)%>%
+  summarise(tot = sum(n, na.rm = T))
+```
+Very few from Africa or South America!
+
+## Over time
+OK, lets get super fancy and create that first map over time.
+```{r}
+nf.loc.time <- netflix %>%
+  separate_rows(country, sep = ", ")%>%
+  mutate(country = recode(country,
+                             "Bahamas" = "The Bahamas",
+                             "Cambodia," = "Cambodia" ,
+                             "East Germany" = "Germany" ,
+                             "Hong Kong" = "Hong Kong S.A.R.", 
+                             "Poland," = "Poland",
+                             "Serbia" = "Republic of Serbia",
+                             "Soviet Union" = "Russia",
+                             "United Kingdom," = "United Kingdom",
+                          "United States" = "United States of America",
+                          "United States," = "United States of America",
+                          "Vatican City" = "Vatican"  ,
+                          "West Germany" = "Germany"  ))%>%
+  filter(!is.na(country))%>%
+  group_by(country, release_year)%>%
+  summarise(n = n())
+
+full.list.map.time <- left_join(countries, nf.loc.time, by = c("admin" = "country"))
+
+p.tot  <- ggplot()+
+  geom_sf(data = full.list.map.time %>% filter(!is.na(release_year)), mapping = aes(fill = n))+
+  scale_fill_viridis(na.value="white")+
+  labs(title = "Countries where Netflix movies/shows are produced",
+       subtitle = "Year: {current_frame}",
+       fill = "Total")+
+  theme_bw()+
+  transition_manual(release_year)
+
+
+animate(p.tot, duration = 15, fps = 20, width = 1000, height = 500, renderer = gifski_renderer())
+
+anim_save(filename = "test_big.gif")
+```
+
