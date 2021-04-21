@@ -20,6 +20,8 @@ library(sf)
 library(rnaturalearth)
 library(gganimate)
 library(viridis)
+library(RColorBrewer)
+
 ```
 
 # loading data
@@ -77,11 +79,15 @@ Now to join them together so we have the spatial information and create a ggplot
 ```{r}
 full.list.map <- left_join(countries, nf.loc, by = c("admin" = "country"))
 ggplot()+
-  geom_sf(data = full.list.map, mapping = aes(fill = n))+
-  scale_fill_viridis(na.value="white")+
+  geom_sf(data = full.list.map , mapping = aes(fill = n))+
+  # scale_fill_viridis(na.value="white")+
+  scale_fill_distiller(palette = "Spectral", na.value = "white", )+
   labs(title = "Countries where Netflix movies/shows are produced",
-       fill = "Total")+
-  theme_bw()
+       subtitle = "Total Number of shows/movies",
+       fill = "") +
+  theme_void()+
+  theme(panel.grid.major = element_line(colour = "transparent"),
+        legend.position = "bottom")
 ```
 
 # scale it to population
@@ -113,10 +119,15 @@ There is a movie in the Vatican, which only has 832 people, so it is skewed (and
 ```{r}
 ggplot()+
   geom_sf(data = full.list.map %>% filter(admin != "Vatican"), mapping = aes(fill = titles.per100k), size = .1)+
-  scale_fill_viridis(na.value="white")+
+  # scale_fill_viridis(na.value="white")+
+  scale_fill_distiller(palette = "Spectral", na.value = "white", )+
   labs(title = "Countries where Netflix movies/shows are produced",
-       fill = "Total per 100k population") +
-  theme_bw()
+       subtitle = "Number per 100,000 people",
+        
+       fill = "") +
+  theme_void()+
+  theme(panel.grid.major = element_line(colour = "transparent"),
+        legend.position = "bottom")
 ```
 
 
